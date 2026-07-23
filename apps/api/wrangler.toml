@@ -59,7 +59,7 @@ crons = ["0 * * * *", "0 3 * * 7"]
 ENVIRONMENT = "development"
 BETTER_AUTH_URL = "http://localhost:8787"
 APP_ORIGIN = "http://localhost:5173"
-EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+EMAIL_FROM = "Kwartaal <hello@mail.kwartaal.app>"
 # No Stripe test account exists yet (BLOCKED, see PROGRESS.md) — checkout
 # degrades to a clear "billing-not-configured" error until these + the
 # STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET secrets are real.
@@ -90,7 +90,7 @@ BETTER_AUTH_URL = "https://kwartaal-api-staging.ykn-ghyorka.workers.dev"
 # attached), the .pages.dev URL is the actually-reachable origin until it
 # is — drop the .pages.dev entry once the custom domain is live.
 APP_ORIGIN = "https://staging.kwartaal.app,https://kwartaal-staging.pages.dev"
-EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+EMAIL_FROM = "Kwartaal <hello@mail.kwartaal.app>"
 # Staging email safety hard rule (PROGRESS.md's "Environment" section):
 # comma-separated recipient allow-list — anything not on it is logged, not
 # sent (see email/resend.ts's isAllowedRecipient). Unset = allow nothing.
@@ -158,7 +158,7 @@ BETTER_AUTH_URL = "https://api.kwartaal.app"
 # actually-reachable origin until it is — drop the .pages.dev entry once
 # the custom domain is live.
 APP_ORIGIN = "https://kwartaal.app,https://kwartaal-production.pages.dev"
-EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+EMAIL_FROM = "Kwartaal <hello@mail.kwartaal.app>"
 STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 

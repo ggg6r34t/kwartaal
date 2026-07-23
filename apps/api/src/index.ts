@@ -9,6 +9,7 @@ import { accessLog } from "./middleware/access-log";
 import { requireSession } from "./middleware/auth";
 import { csrfGuard } from "./middleware/csrf";
 import { rateLimit } from "./middleware/rate-limit";
+import { redirectGuard } from "./middleware/redirect-guard";
 import { requireProForMutations } from "./middleware/entitlement";
 import { parseTrustedOrigins } from "./auth/origins";
 import { createAuth } from "./auth";
@@ -38,7 +39,7 @@ import { handleScheduled } from "./scheduled";
 const app = new Hono<AppEnv>();
 
 // Middleware order is load-bearing:
-// requestId -> secureHeaders -> cors -> withDb -> accessLog -> [rateLimit on auth] -> csrfGuard -> requireSession -> requireRole(...) -> handler
+// requestId -> secureHeaders -> cors -> withDb -> accessLog -> [rateLimit + redirectGuard on auth] -> csrfGuard -> requireSession -> requireRole(...) -> handler
 app.use("*", requestId);
 app.use("*", secureHeaders());
 app.use("*", (c, next) =>
@@ -65,8 +66,18 @@ app.onError((err, c) => {
 
 // Better Auth mounts at /api/auth/*; every other route mounts at the root
 // (the /api prefix the browser uses is stripped by the same-origin proxy —
-// see apps/web/functions/api/[[path]].ts and vite.config.ts).
-app.use("/api/auth/*", rateLimit({ bucket: "auth", limit: 20, windowSec: 60 }));
+// see apps/web/functions/api/[[path]].ts and vite.config.ts). get-session is
+// excluded from the rate limit: it's a read-only cookie check with no
+// credential-testing/enumeration value to protect, but every page mount's
+// useSession()/useMe() fires it, so leaving it in the same bucket as
+// sign-in/sign-up/magic-link/reset-password means routine navigation alone
+// can exhaust the budget and lock a real user out of actually signing in —
+// exactly the false-positive this rewrite closes.
+const authRateLimit = rateLimit({ bucket: "auth", limit: 20, windowSec: 60 });
+app.use("/api/auth/*", (c, next) =>
+  c.req.path === "/api/auth/get-session" ? next() : authRateLimit(c, next),
+);
+app.use("/api/auth/*", redirectGuard);
 app.on(["GET", "POST"], "/api/auth/*", (c) =>
   createAuth(c.get("db"), c.env).handler(c.req.raw),
 );

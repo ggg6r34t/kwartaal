@@ -1,6 +1,6 @@
 import { env, SELF } from "cloudflare:test";
 
-const ORIGIN = "http://localhost:5173";
+export const ORIGIN = "http://localhost:5173";
 
 export interface TestSession {
   cookie: string;

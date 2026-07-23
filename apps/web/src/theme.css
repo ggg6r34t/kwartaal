@@ -87,6 +87,10 @@
   --color-amber: #a87e24;
   --color-amber-ink: #8a6a1e;
   --color-amber-bg: #f6efdd;
+  /* Auth surfaces' "expired/already used" register (icon-box + banner
+     borders) — the existing amber trio had no border variant yet; this is
+     its first repeated (4+) use. */
+  --color-amber-border: #e8d9ae;
   --color-clay: var(--color-state-overdue);
   --color-clay-bg: var(--color-state-overdue-bg);
 

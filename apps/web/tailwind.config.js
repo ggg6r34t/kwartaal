@@ -77,6 +77,7 @@ export default {
           DEFAULT: "var(--color-amber)",
           ink: "var(--color-amber-ink)",
           bg: "var(--color-amber-bg)",
+          border: "var(--color-amber-border)",
         },
         clay: {
           DEFAULT: "var(--color-clay)",

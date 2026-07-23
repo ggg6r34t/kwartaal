@@ -1518,31 +1518,182 @@ ALLOWLIST` (fails safe — blocks all sends — but needs real addresses to
   (the sibling product's do have one per env) — a deliberate follow-up
   decision, not made unilaterally here.
 
+## Auth surfaces
+
+Full pixel-faithful implementation of `docs/design/.../Kwartaal Auth.dc.html`
+(session 3): sign in, sign up, check-your-inbox, magic-link outcomes,
+forgot/reset password, bookkeeper invite acceptance, and the three auth
+emails — wired to the existing Pillar 1 Better Auth setup, not a
+reconfiguration of it.
+
+### What's done
+
+**Backend (`apps/api`)**
+
+- `auth/index.ts`: magic-link `expiresIn` and `emailAndPassword.
+resetPasswordTokenExpiresIn` both set to 15 minutes (one shared constant,
+  `auth/constants.ts`, so the emailed "expires in 15 minutes" copy can
+  never drift from what's actually enforced); `minPasswordLength` raised
+  8 → 10 to match the design's reset-password hint copy; `sendResetPassword`
+  wired to a new `email/deliver-password-reset.ts` (Better Auth's own
+  `requestPasswordReset` already has anti-enumeration built in — dummy
+  verification lookup + identical response for a missing user — verified
+  by test, not just assumed).
+- **A real, previously-unexercised bug found and fixed**:
+  `email/rewrite-auth-link.ts`. Better Auth builds magic-link/reset-
+  password URLs on `BETTER_AUTH_URL` (the Worker's own origin), but
+  `apps/web/functions/api/[[path]].ts`'s same-origin proxy exists
+  specifically because a cookie set on the Worker's origin never comes
+  back on the app's own subsequent requests. Every prior e2e sign-up went
+  through the API directly (see `core-quarter-flow.spec.ts`'s own note) —
+  nobody had actually clicked an emailed link before this pillar's e2e
+  flow did. Fixed by rewriting the link's origin to `APP_ORIGIN` (path/
+  query untouched) before it's ever sent, routing the click through the
+  same same-origin proxy every other auth request already uses. Same fix
+  applies to both magic-link and password-reset emails.
+- `middleware/redirect-guard.ts`: Better Auth's `sign-in/magic-link`
+  endpoint runs no `originCheck` on `callbackURL`/`errorCallbackURL` (its
+  own `requestPasswordReset` does, on `redirectTo` — confirmed by reading
+  the installed version's source, not assumed). Since a real session
+  cookie is set before the redirect fires, an unchecked callbackURL is a
+  genuine phishing vector: a direct API call naming a victim's email and
+  an attacker-controlled `callbackURL` would still mail that victim a
+  legitimate Kwartaal link. Added as its own composable middleware next to
+  the existing `rateLimit`, checking body + query params against
+  `parseTrustedOrigins` before the request ever reaches Better Auth's
+  handler.
+- `email/auth-email-shell.ts` + rewritten `deliver-magic-link.ts`,
+  `deliver-bookkeeper-invite.ts`, new `deliver-password-reset.ts`: the
+  design's mark/wordmark/card/footer email template, HTML + plain-text,
+  same dev-logs/prod-sends/staging-allowlist pattern as every other email
+  in the app.
+- `routes/invite-preview.ts`: three distinct responses matching the
+  design's three states — 200 (valid, full preview incl. the inviting
+  owner's name and legal form), 410 (expired — still names the inviter, so
+  "ask Maya to send a fresh one" is possible), 404 (never existed or
+  already consumed — no context invented). New `POST /invite-preview/
+:token/decline` (public, same threat model as the existing public preview
+  GET): deletes the invite, writes an `invite_declined` row to the
+  existing-but-previously-unused `notifications` table (the design's email
+  copy promises "Maya has been notified" — this makes that literally
+  true, proven by test, even though there's no notification-inbox UI yet
+  to surface it), and an audit-log entry.
+- `routes/invites.ts`: now looks up the inviting owner's `authUser.name`
+  (falling back to org name) so both the invite email and the
+  AcceptInvite page can say "Maya Lindqvist invited you" instead of a
+  generic line.
+- `wrangler.toml`: `EMAIL_FROM` updated to `Kwartaal <hello@mail.
+kwartaal.app>` (was a `.example` placeholder) across all three
+  environments.
+- **A real rate-limit false positive found and fixed**:
+  `/api/auth/get-session` — a read-only cookie check with zero
+  credential-testing value — shared the same 20/60s per-IP bucket as
+  sign-in/sign-up/magic-link/reset-password. Every page mount's
+  `useSession()`/`useMe()` fires it, so on a shared/NAT'd IP (or, in
+  local dev and CI, an IP that's always literally the string `"unknown"`
+  since Miniflare never sets `cf-connecting-ip`) ordinary navigation alone
+  could exhaust the whole budget and lock a real user out of actually
+  signing in. Confirmed empirically: a clean full e2e run measured 32
+  `/api/auth/*` hits in one 60s window, 11 of them bare `get-session`
+  reads. Excluded `get-session` from the rate limit in `index.ts` — every
+  credential-testing/enumeration-relevant endpoint stays fully protected.
+
+**Frontend (`apps/web`)**
+
+- `components/AuthShell.tsx`: the design's shared shell (mark + wordmark
+  over a single card on `wash`), reused by every auth screen.
+- `lib/return-to.ts`: `sanitizeReturnTo` — same-origin-relative-path-only
+  allow-list for the post-auth destination (redirect discipline: "never
+  open redirects"). `RequireAuth.tsx` now appends `?returnTo=` when
+  bouncing an unauthenticated deep link to `/signin`; `lib/api.ts`'s
+  previously-unwired `setOnUnauthenticated` hook is now wired in `App.tsx`
+  to the same mechanism for a session that expires mid-use (the design's
+  "Expired session redirect" state) — that hook existed since Pillar 1 and
+  had never been called until now.
+- Rewritten `routes/SignIn.tsx` (magic link default, password disclosure,
+  wrong-password error, rate-limited state reading the real
+  `retry-after`-adjacent window rather than a fabricated countdown,
+  expired-session banner) and new `routes/SignUp.tsx`, `CheckYourInbox.tsx`
+  (live 30s resend cooldown, shared by magic-link sign-in/sign-up/
+  password-reset requests), `LinkExpired.tsx`, `ForgotPassword.tsx`,
+  `ResetPassword.tsx`; rewritten `AcceptInvite.tsx` (accept via magic link
+  or password, decline, expired-with-inviter-name, not-found).
+- `LinkExpired.tsx`'s amber-vs-neutral split: Better Auth collapses
+  expired/already-used/invalid/forged into one `INVALID_TOKEN` error with
+  no way to distinguish them server-side (confirmed by reading the
+  installed plugin's source). The `email` query param is never decoded
+  from the token — it's one this app attaches to `errorCallbackURL` itself
+  when _this browser_ sent the link (`lib/auth-resend.ts`), so its
+  presence means "we know what this browser was trying to do" (amber,
+  targeted resend) and its absence means a stale/forwarded/forged link
+  (neutral, deliberately vague, exactly as the design specifies).
+- `theme.css`/`tailwind.config.js`: one new token, `--color-amber-border`
+  (4+ reuses across the expired/rate-limited states — the existing amber
+  trio had no border variant).
+- Auth-client (`lib/auth-client.ts`) now also exports `signUp`,
+  `requestPasswordReset`, `resetPassword` (previously only `signIn`).
+
+### Gate results
+
+| Check                                                    | Result                                                                                                                  |
+| -------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck`                                      | ✅                                                                                                                      |
+| `npm test` (169 tests: 93 core + 4 db + 56 api + 16 web) | ✅ (+8 api: anti-enumeration pair, redirect-guard, invite reuse/expiry/decline; +7 web: `sanitizeReturnTo`)             |
+| `npm run lint`                                           | ✅                                                                                                                      |
+| `npm run format:check`                                   | ✅ (pre-existing untracked `VERIFICATION-PROTOCOL.md` unchanged)                                                        |
+| `npm run token-check`                                    | ✅ 0 violations                                                                                                         |
+| `npm run brand-check`                                    | ✅ 0 violations                                                                                                         |
+| `npm run build:web`                                      | ✅                                                                                                                      |
+| `npm run test:a11y` (marketing site, unchanged scope)    | ✅ 10/10                                                                                                                |
+| e2e (real Chromium, real `wrangler dev` + `vite dev`)    | ✅ 24/24 (+2: magic-link click-through against the real dev-mailbox D1 row, password sign-in + forgot/reset round-trip) |
+| `wrangler deploy --dry-run` (API)                        | ✅                                                                                                                      |
+
+### Deviations / notes
+
+1. **Bookkeeper-invite "Use password instead" is a real signup path**,
+   not just magic link — since invited emails can never already have an
+   account (enforced at invite-creation time), `signUp.email` on the
+   invited address correctly triggers the same `consumeInviteIfPending`
+   hook as magic link.
+2. **The consent-as-checkbox sign-up variant from the design was not
+   built** — only the "consent as line" default. The design itself frames
+   the checkbox as "if legally required," and nothing in this pillar's
+   scope established that requirement; adding it is a one-line change
+   later if it ever is.
+3. **`accessibility.spec.ts`'s axe-core scan was deliberately left scoped
+   to the marketing site** — `KWARTAAL-BUILD-PLAN.md`'s Definition of Done
+   names "the marketing site" specifically, and this pillar's own gate
+   list didn't call for widening it. Auth-page accessibility (autocomplete
+   attributes, label associations, focus-moved-to-error, aria-invalid/
+   describedby) was built to the same standard throughout but isn't
+   currently proven by an automated axe run the way the marketing site is.
+4. **Two real, previously-latent bugs were caught by finally building this
+   pillar's required e2e flows** rather than by design review: the cross-
+   origin magic-link/reset-password cookie bug (item above), and the
+   `get-session` rate-limit false positive. Neither was hypothetical —
+   both were reproduced with evidence (a 302 landing on the wrong origin;
+   a clean-state 32-hits-in-60s count) before being fixed, per the
+   systematic-debugging discipline this session followed throughout.
+
 ## Next session
 
-Pillar 6 was the plan's last pillar. Staging and production are now both
-**real, deployed, and verified** (see "Environment" above) — what remains
-is narrower than it was: two dashboard-only domain attachments, and the
-credential-BLOCKED items (Stripe, Resend, Sentry, real TaxFigures) that
-were always going to need the operator's hands regardless of
-infrastructure access. Start with: "Read KWARTAAL-BUILD-PLAN.md,
-CLAUDE.md, and PROGRESS.md" and then, with the user:
+Pillar 6 and the Auth surfaces pillar are both done; staging and
+production are **real, deployed, and verified** (see "Environment" above).
+What remains is entirely credential- or operator-gated, not code:
 
 1. Attach the two Pages custom domains (`kwartaal.app` →
    `kwartaal-production`, `staging.kwartaal.app` → `kwartaal-staging`) via
    the Cloudflare dashboard, then drop each environment's `.pages.dev`
    entry from its `APP_ORIGIN`.
 2. Set real `EMAIL_ALLOWLIST` addresses for staging so reminder-email
-   testing can actually deliver somewhere.
+   (and now magic-link/reset/invite-email) testing can actually deliver
+   somewhere.
 3. A real Stripe test account (walk through one real Checkout → webhook →
    entitlement-unlocks cycle by hand, since that's the one flow this repo
    has only ever simulated) is the single highest-value next external
-   dependency to obtain, followed by Resend domain verification and a
-   Sentry DSN.
+   dependency to obtain, followed by Resend domain verification (needed
+   for `mail.kwartaal.app` to actually send) and a Sentry DSN.
 4. Now that staging is real, the backup-restore rehearsal's still-untested
    `--remote` path (see Pillar 6's "Backup restore" section above) can
    finally be rehearsed against it for real — it was BLOCKED purely on
-   "no staging exists," which is no longer true. The accessibility gate
-   itself no longer needs this (see the brand-hygiene sweep note above —
-   it's a self-contained axe-core CI step now, not a scan of a deployed
-   site by an external tool).
+   "no staging exists," which is no longer true.

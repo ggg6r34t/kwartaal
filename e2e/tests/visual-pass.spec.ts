@@ -56,8 +56,24 @@ test.describe("visual pass — marketing (unauthenticated)", () => {
 });
 
 test.describe("visual pass — app screens (as the seeded Maya demo account)", () => {
+  // One real sign-in for the whole block, not one per screen: each test
+  // still gets Playwright's usual fresh, isolated context — it's just
+  // pre-seeded with the same valid session cookie via addCookies rather
+  // than re-authenticating from scratch. Beyond being wasteful, 7 real
+  // POST /api/auth/sign-in/email calls back-to-back materially eats into
+  // the shared per-IP auth rate-limit budget every other auth-touching
+  // test in the suite also draws from (see apps/api/src/index.ts).
+  let mayaCookies: Awaited<ReturnType<BrowserContext["cookies"]>> = [];
+
+  test.beforeAll(async ({ browser }) => {
+    const setupContext = await browser.newContext();
+    await signInAsMaya(setupContext);
+    mayaCookies = await setupContext.cookies();
+    await setupContext.close();
+  });
+
   test.beforeEach(async ({ context }) => {
-    await signInAsMaya(context);
+    await context.addCookies(mayaCookies);
   });
 
   const pages: [string, string, string][] = [

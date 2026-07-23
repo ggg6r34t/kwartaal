@@ -1,8 +1,15 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { useEffect } from "react";
+import { Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { RequireAuth } from "./app/RequireAuth";
 import { RequireOnboarded } from "./app/RequireOnboarded";
 import { AppShell } from "./app/AppShell";
+import { setOnUnauthenticated } from "./lib/api";
 import { SignIn } from "./routes/SignIn";
+import { SignUp } from "./routes/SignUp";
+import { CheckYourInbox } from "./routes/CheckYourInbox";
+import { LinkExpired } from "./routes/LinkExpired";
+import { ForgotPassword } from "./routes/ForgotPassword";
+import { ResetPassword } from "./routes/ResetPassword";
 import { AcceptInvite } from "./routes/AcceptInvite";
 import { Onboarding } from "./routes/Onboarding";
 import { Today } from "./routes/Today";
@@ -24,7 +31,30 @@ import { Dpa } from "./marketing/Dpa";
 import { Impressum } from "./marketing/Impressum";
 import { NotFound } from "./marketing/NotFound";
 
+/**
+ * lib/api.ts's onUnauthenticated hook fires on any 401 from an in-app API
+ * call (a session that expired mid-use, not the initial unauthenticated
+ * page load RequireAuth already covers) — docs/design's "Expired session
+ * redirect" sign-in state exists specifically for this. Wired once here,
+ * the one place already inside the Router that every route shares.
+ */
+function useSessionExpiredRedirect() {
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    setOnUnauthenticated(() => {
+      const returnTo = `${location.pathname}${location.search}`;
+      navigate(`/signin?returnTo=${encodeURIComponent(returnTo)}&sessionExpired=1`, {
+        replace: true,
+      });
+    });
+    return () => setOnUnauthenticated(() => {});
+  }, [navigate, location]);
+}
+
 export function App() {
+  useSessionExpiredRedirect();
+
   return (
     <Routes>
       <Route path="/" element={<Home />} />
@@ -39,6 +69,11 @@ export function App() {
       <Route path="/impressum" element={<Impressum />} />
 
       <Route path="/signin" element={<SignIn />} />
+      <Route path="/signup" element={<SignUp />} />
+      <Route path="/check-your-inbox" element={<CheckYourInbox />} />
+      <Route path="/link-expired" element={<LinkExpired />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/accept-invite/:token" element={<AcceptInvite />} />
 
       <Route element={<RequireAuth />}>

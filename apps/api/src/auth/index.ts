@@ -12,8 +12,10 @@ import type { Bindings } from "../bindings";
 import { resolveAuthSecret } from "./secret";
 import { parseTrustedOrigins } from "./origins";
 import { deliverMagicLink } from "../email/deliver-magic-link";
+import { deliverPasswordReset } from "../email/deliver-password-reset";
 import { provisionOrgForNewUser } from "../lib/provision-org";
 import { consumeInviteIfPending } from "../lib/consume-invite";
+import { AUTH_LINK_EXPIRY_SECONDS } from "./constants";
 
 /**
  * Instantiated per request (the D1 binding is only available per request).
@@ -38,12 +40,20 @@ export function createAuth(db: Database, env: Bindings) {
     }),
     emailAndPassword: {
       enabled: true,
-      minPasswordLength: 8,
+      // Matches docs/design's reset-password hint copy ("At least 10
+      // characters") — one number governs both signup and reset since
+      // Better Auth's minPasswordLength is global to emailAndPassword.
+      minPasswordLength: 10,
       disableSignUp: false,
+      resetPasswordTokenExpiresIn: AUTH_LINK_EXPIRY_SECONDS,
+      sendResetPassword: async ({ user, url }) => {
+        await deliverPasswordReset(env, user.email, url);
+      },
     },
     plugins: [
       magicLink({
         disableSignUp: false,
+        expiresIn: AUTH_LINK_EXPIRY_SECONDS,
         sendMagicLink: async ({ email, url }) => {
           await deliverMagicLink(env, email, url);
         },

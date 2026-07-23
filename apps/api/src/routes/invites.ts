@@ -8,10 +8,11 @@ import type { AppEnv } from "../bindings";
 import { requireRole } from "../middleware/auth";
 import { audit } from "../lib/audit";
 import { deliverBookkeeperInvite } from "../email/deliver-bookkeeper-invite";
+import { INVITE_EXPIRY_DAYS } from "../auth/constants";
 
 export const invites = new Hono<AppEnv>();
 
-const INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const INVITE_TTL_MS = INVITE_EXPIRY_DAYS * 24 * 60 * 60 * 1000;
 
 function inviteDto(row: {
   id: string;
@@ -59,6 +60,13 @@ invites.post(
       .from(schema.orgs)
       .where(eq(schema.orgs.id, tenantDb.orgId));
 
+    const [inviter] = await tenantDb.global
+      .select({ name: authUser.name })
+      .from(schema.users)
+      .innerJoin(authUser, eq(authUser.id, schema.users.authUserId))
+      .where(eq(schema.users.id, c.get("session").userId));
+    const invitedByName = inviter?.name || org?.name || "Your bookkeeper client";
+
     const id = newId("invite");
     const token = crypto.randomUUID();
     const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
@@ -83,6 +91,7 @@ invites.post(
       c.env,
       email,
       org?.name ?? "Kwartaal",
+      invitedByName,
       `${c.env.APP_ORIGIN}/accept-invite/${row!.token}`,
     );
 

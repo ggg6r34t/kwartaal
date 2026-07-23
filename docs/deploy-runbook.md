@@ -20,8 +20,22 @@ what was verified with real HTTP requests).
   checklist below. Their `.pages.dev` URLs still exist but are
   intentionally no longer trusted origins (dropped from `APP_ORIGIN` on
   cutover; a sign-in attempt with that `Origin` now gets a real `403`,
-  verified). No Git connection on either — deploys are manual via
-  `wrangler pages deploy`, triggered on green, never automatic on push.
+  verified). **No native Git connection — can't have one**: both were
+  created via `wrangler pages project create` (Direct Upload), and
+  Cloudflare's API explicitly refuses to convert a Direct Upload project's
+  `source` to a Git connection after the fact (`PATCH .../pages/projects/
+:name` with a `source` object returns error `8000069`, "You cannot update
+  the `source` object in a Direct Uploads project" — confirmed by trying
+  it, not assumed from docs). The practical fix isn't Cloudflare's native
+  Pages↔GitHub integration, it's `.github/workflows/ci.yml`'s
+  `deploy-pages` job: `wrangler pages deploy` for both environments,
+  automatically, after `verify` goes green on a push to `main`. This is
+  exactly why the auth-surfaces frontend work sat committed and CI-green
+  for a while without actually being live — pushing to GitHub did nothing
+  to the Pages projects until this job existed. `CLOUDFLARE_API_TOKEN` is
+  a GitHub Actions repo secret (Settings → Secrets and variables →
+  Actions), separate from — but the same value as — the one in local
+  `wrangler` auth.
 - **Pages custom domains are API-reachable, not wrangler-supported —
   don't assume dashboard-only.** `wrangler pages` has no domain-attach
   subcommand, which reads like "dashboard only," but the REST endpoint
@@ -78,6 +92,16 @@ its origin feeds `APP_ORIGIN`/`BETTER_AUTH_URL` on the API side.
 
 ## Normal deploy (staging or production)
 
+**Pages (the web app) is automatic**: every push to `main` that passes
+`verify` triggers `deploy-pages` in CI, which deploys the built `dist/` to
+both `kwartaal-staging` and `kwartaal-production` via `wrangler pages
+deploy`. Nothing to run by hand for the frontend anymore.
+
+**The API Worker is still a deliberate manual step** — unlike Pages, a bad
+Worker deploy affects cron triggers, migrations, and live request handling
+directly, with less margin for "just redeploy the last good build" the way
+static assets have:
+
 ```
 npm run typecheck && npm test && npm run lint && npm run format:check && npm run token-check
 npm run build:web
@@ -85,8 +109,8 @@ npx wrangler deploy --env staging   # or --env production, from apps/api
 ```
 
 CI (`.github/workflows/ci.yml`) runs the same gate plus `wrangler deploy
---dry-run` on every push; a real `wrangler deploy` is a manual/protected step,
-not automatic on merge.
+--dry-run` on every push; a real `wrangler deploy` (API) stays manual/
+protected, not automatic on merge.
 
 After deploying, confirm the cron triggers actually registered:
 

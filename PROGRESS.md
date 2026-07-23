@@ -1564,6 +1564,40 @@ real requests, not assumed from Cloudflare's own "active" status alone:
 `https://api.kwartaal.app` (unchanged), `https://kwartaal-api-staging.
 <account-subdomain>.workers.dev` (unchanged).
 
+### Real gap found: Pages was never actually redeployed after auth surfaces
+
+Pushing the whole Auth-surfaces pillar (and everything after it) to GitHub
+never touched the live Pages sites — both projects were created via
+`wrangler pages project create` (Direct Upload), which has no Git
+connection at all, so nothing was watching `main` for changes. The user
+caught this directly ("I am still seeing the old auth page design"),
+confirmed by comparing the live site's JS bundle hash against a fresh
+local build — they didn't match. Fixed in two parts:
+
+1. Deployed the current build to both `kwartaal-staging` and
+   `kwartaal-production` by hand (the documented `cp deploy/wrangler.*.toml
+wrangler.toml && wrangler pages deploy dist ...` procedure) — verified
+   live afterward (new bundle hash on both, `"Use password instead"`
+   confirmed present in the served JS, `/api/health` still correct).
+2. **Closed the actual root cause**, not just this one instance of it:
+   tried the obvious fix first — connecting the Pages projects to GitHub
+   natively — and hit a real, confirmed wall: `PATCH .../pages/projects/
+:name` with a `source` object returns `{"code":8000069,"message":"You
+cannot update the \`source\` object in a Direct Uploads project."}`.
+Direct Upload is a one-way door; there's no API or dashboard path to
+convert an existing one to Git-connected — only creating a brand-new
+project would get native integration, which would mean re-attaching
+both custom domains and the Worker service binding, a real migration
+with live-traffic risk the user didn't ask for here. Instead, added a
+`deploy-pages`job to`.github/workflows/ci.yml`: runs after `verify`goes green on a push to`main`, builds, and runs the same
+`wrangler pages deploy`for both environments that used to be a manual
+step.`CLOUDFLARE_API_TOKEN` added as a GitHub Actions repo secret
+(`gh secret set`) — same value as local `wrangler`auth, scoped
+separately. From here forward, a green push to`main` **is** a real
+deploy for both Pages and the marketing/app frontend; the API Worker
+(`wrangler deploy --env ...`) deliberately stays a manual step (see
+"Normal deploy" in `docs/deploy-runbook.md` for why).
+
 ### Still open
 
 - `EMAIL_ALLOWLIST` for staging is still `REPLACE_WITH_STAGING_EMAIL_

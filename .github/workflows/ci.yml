@@ -87,6 +87,14 @@ jobs:
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          # `wrangler pages` ignores wrangler.toml's account_id entirely
+          # (unlike d1/r2/queues, which read it fine) and needs this as an
+          # actual env var — not secret, same value already committed in
+          # apps/api/wrangler.toml. Confirmed the hard way: this step
+          # failed with a "/memberships ... Authentication error" without
+          # it, the exact same failure mode documented in PROGRESS.md's
+          # "Environment" section for local `wrangler pages` use.
+          CLOUDFLARE_ACCOUNT_ID: 147db6fed4f442dd3eb80aae7701ce8a
         run: |
           cp deploy/wrangler.staging.toml wrangler.toml
           npx wrangler pages deploy dist --branch=main --commit-dirty=true
@@ -96,6 +104,7 @@ jobs:
         working-directory: apps/web
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: 147db6fed4f442dd3eb80aae7701ce8a
         run: |
           cp deploy/wrangler.production.toml wrangler.toml
           npx wrangler pages deploy dist --branch=main --commit-dirty=true

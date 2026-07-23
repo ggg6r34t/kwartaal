@@ -23,4 +23,6 @@ export * from "./contracts/calculator";
 export * from "./contracts/onboarding";
 export * from "./contracts/import";
 export * from "./contracts/deadline";
+export * from "./contracts/income-tax";
+export * from "./contracts/vault";
 export * from "./import";

@@ -20,6 +20,13 @@ import { onboarding } from "./routes/onboarding";
 import { quarters } from "./routes/quarters";
 import { deadlines } from "./routes/deadlines";
 import { glossary } from "./routes/glossary";
+import { incomeTax } from "./routes/income-tax";
+import { hours } from "./routes/hours";
+import { km } from "./routes/km";
+import { money } from "./routes/money";
+import { receipts } from "./routes/receipts";
+import { exportJobs } from "./routes/export-jobs";
+import { startupCosts } from "./routes/startup-costs";
 import { handleQueue } from "./queue";
 import { handleScheduled } from "./scheduled";
 
@@ -90,6 +97,27 @@ app.route("/deadlines", deadlines);
 
 app.use("/glossary/*", csrfGuard, requireSession);
 app.route("/glossary", glossary);
+
+app.use("/income-tax/*", csrfGuard, requireSession);
+app.route("/income-tax", incomeTax);
+
+app.use("/hours-entries/*", csrfGuard, requireSession);
+app.route("/hours-entries", hours);
+
+app.use("/km-entries/*", csrfGuard, requireSession);
+app.route("/km-entries", km);
+
+app.use("/money/*", csrfGuard, requireSession);
+app.route("/money", money);
+
+app.use("/receipts/*", csrfGuard, requireSession);
+app.route("/receipts", receipts);
+
+app.use("/export-jobs/*", csrfGuard, requireSession);
+app.route("/export-jobs", exportJobs);
+
+app.use("/startup-costs/*", csrfGuard, requireSession);
+app.route("/startup-costs", startupCosts);
 
 app.notFound((c) => c.json({ error: "not-found" }, 404));
 

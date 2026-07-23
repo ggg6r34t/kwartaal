@@ -11,11 +11,13 @@
     "db:local:reset": "wrangler d1 migrations apply kwartaal --local && wrangler d1 execute kwartaal --local --file=../../packages/db/seed.sql"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^0.0.14",
     "@kwartaal/core": "*",
     "@kwartaal/db": "*",
     "@hono/zod-validator": "^0.4.1",
     "better-auth": "^1.6.23",
     "drizzle-orm": "^0.45.2",
+    "fflate": "^0.8.2",
     "hono": "^4.6.14",
     "zod": "^3.24.1"
   },

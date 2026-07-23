@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { schema } from "@kwartaal/db/schema";
 import {
+  buildDepreciationSchedule,
   computeQuarter,
   createExpenseLineSchema,
   createIncomeLineSchema,
@@ -157,6 +158,24 @@ quarters.post(
       deductionMode: body.deductionMode,
       receiptId: null,
     });
+
+    if (body.deductionMode === "depreciate" && body.depreciation) {
+      const schedule = buildDepreciationSchedule(
+        body.amountExVatCents,
+        body.depreciation.years,
+        body.depreciation.residualCents,
+        body.depreciation.startMonth,
+      );
+      const annualCents = schedule[1]?.amountCents ?? schedule[0]?.amountCents ?? 0;
+      await tenantDb.insert(schema.depreciationSchedules, {
+        id: newId("depreciationSchedule"),
+        expenseLineId: id,
+        years: body.depreciation.years,
+        residualCents: body.depreciation.residualCents,
+        annualCents,
+        startMonth: body.depreciation.startMonth,
+      });
+    }
 
     if (quarter.status === "open") {
       await tenantDb.update(

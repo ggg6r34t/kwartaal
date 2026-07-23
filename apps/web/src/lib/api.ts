@@ -1,5 +1,10 @@
 const BASE = import.meta.env.VITE_API_URL ?? "/api";
 
+/** For plain `<a href>`/download links that need the API origin but not a fetch call. */
+export function apiUrl(path: string): string {
+  return `${BASE}${path}`;
+}
+
 export class ApiError extends Error {
   constructor(
     public status: number,

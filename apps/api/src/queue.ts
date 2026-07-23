@@ -1,5 +1,6 @@
 import { eq } from "drizzle-orm";
-import { createDb, forOrg, type Database } from "@kwartaal/db";
+import { zipSync, strToU8 } from "fflate";
+import { createDb, forOrg, type Database, type TenantDb } from "@kwartaal/db";
 import { schema } from "@kwartaal/db/schema";
 import { authUser } from "@kwartaal/db/auth-schema";
 import { newId, type DeadlineKind } from "@kwartaal/core";
@@ -8,6 +9,11 @@ import { logger } from "./lib/logger";
 import { audit } from "./lib/audit";
 import { deliverReminderEmail } from "./email/deliver-reminder";
 import { buildReminderEmail } from "./email/reminder-templates";
+import {
+  buildBookkeeperSummaryHtml,
+  renderBookkeeperSummaryPdf,
+} from "./lib/bookkeeper-summary";
+import { aggregateIncomeTaxYear } from "./lib/income-tax-aggregate";
 
 /**
  * Both queues share this handler; batch.queue tells you which.
@@ -27,9 +33,9 @@ export async function handleQueue(
 
     if (message.body.kind === "reminder") {
       await handleReminderMessage(db, env, message.body);
+    } else if (message.body.kind === "export") {
+      await handleExportMessage(db, env, message.body);
     }
-    // Pillar 4 implements the export consumer (build the zip/PDF, write to
-    // R2, update ExportJob status).
 
     message.ack();
   }
@@ -113,4 +119,144 @@ async function handleReminderMessage(
     target: body.deadlineId,
     meta: { stage: body.stage },
   });
+}
+
+/**
+ * The user's own 7-year retention obligation, self-served: everything
+ * tenant-scoped as JSON plus the actual receipt files, zipped and dropped in
+ * R2. Never built inline in a request handler (async rule) — the route only
+ * enqueues; this is where the work happens.
+ */
+async function handleExportMessage(
+  db: Database,
+  env: Bindings,
+  body: ExportQueueMessage,
+): Promise<void> {
+  const tenantDb = forOrg(db, body.orgId);
+
+  const [job] = await tenantDb.select(
+    schema.exportJobs,
+    eq(schema.exportJobs.id, body.exportJobId),
+  );
+  if (!job) return; // deleted since enqueue; nothing to do
+
+  await tenantDb.update(
+    schema.exportJobs,
+    { status: "running" },
+    eq(schema.exportJobs.id, job.id),
+  );
+
+  try {
+    const r2Key =
+      job.kind === "bookkeeper_summary"
+        ? await buildBookkeeperSummaryPdfFile(tenantDb, env, job)
+        : await buildExportZip(tenantDb, env, job.id);
+    await tenantDb.update(
+      schema.exportJobs,
+      { status: "completed", r2Key },
+      eq(schema.exportJobs.id, job.id),
+    );
+    await audit(tenantDb, {
+      actor: job.requestedBy,
+      action: "export-job.completed",
+      target: job.id,
+    });
+  } catch (err) {
+    logger.error("export-job-failed", {
+      exportJobId: job.id,
+      orgId: body.orgId,
+      message: err instanceof Error ? err.message : String(err),
+    });
+    await tenantDb.update(
+      schema.exportJobs,
+      { status: "failed" },
+      eq(schema.exportJobs.id, job.id),
+    );
+    await audit(tenantDb, {
+      actor: job.requestedBy,
+      action: "export-job.failed",
+      target: job.id,
+    });
+  }
+}
+
+async function buildExportZip(
+  tenantDb: TenantDb,
+  env: Bindings,
+  jobId: string,
+): Promise<string> {
+  const [
+    quarters,
+    incomeLines,
+    expenseLines,
+    depreciationSchedules,
+    hoursEntries,
+    kmEntries,
+    pots,
+    setAsideEntries,
+    voorlopigeAanslagen,
+    receipts,
+  ] = await Promise.all([
+    tenantDb.select(schema.quarters),
+    tenantDb.select(schema.incomeLines),
+    tenantDb.select(schema.expenseLines),
+    tenantDb.select(schema.depreciationSchedules),
+    tenantDb.select(schema.hoursEntries),
+    tenantDb.select(schema.kmEntries),
+    tenantDb.select(schema.pots),
+    tenantDb.select(schema.setAsideEntries),
+    tenantDb.select(schema.voorlopigeAanslagen),
+    tenantDb.select(schema.receipts),
+  ]);
+
+  const files: Record<string, Uint8Array> = {
+    "quarters.json": strToU8(JSON.stringify(quarters, null, 2)),
+    "income-lines.json": strToU8(JSON.stringify(incomeLines, null, 2)),
+    "expense-lines.json": strToU8(JSON.stringify(expenseLines, null, 2)),
+    "depreciation-schedules.json": strToU8(
+      JSON.stringify(depreciationSchedules, null, 2),
+    ),
+    "hours-entries.json": strToU8(JSON.stringify(hoursEntries, null, 2)),
+    "km-entries.json": strToU8(JSON.stringify(kmEntries, null, 2)),
+    "pots.json": strToU8(JSON.stringify(pots, null, 2)),
+    "set-aside-entries.json": strToU8(JSON.stringify(setAsideEntries, null, 2)),
+    "voorlopige-aanslagen.json": strToU8(JSON.stringify(voorlopigeAanslagen, null, 2)),
+    "receipts.json": strToU8(JSON.stringify(receipts, null, 2)),
+  };
+
+  for (const receipt of receipts) {
+    const object = await env.RECEIPTS.get(receipt.r2Key);
+    if (!object) continue; // orphaned row — export the metadata, skip the missing file
+    const bytes = new Uint8Array(await object.arrayBuffer());
+    const ext = receipt.r2Key.split(".").pop() ?? "bin";
+    files[`receipts/${receipt.id}.${ext}`] = bytes;
+  }
+
+  const zipped = zipSync(files, { level: 6 });
+  const key = `${tenantDb.orgId}/exports/${jobId}.zip`;
+  await env.RECEIPTS.put(key, zipped, {
+    httpMetadata: { contentType: "application/zip" },
+  });
+  return key;
+}
+
+async function buildBookkeeperSummaryPdfFile(
+  tenantDb: TenantDb,
+  env: Bindings,
+  job: { id: string; year: number | null },
+): Promise<string> {
+  if (job.year === null) throw new Error("bookkeeper_summary export job missing year");
+
+  const [[profile], org, data] = await Promise.all([
+    tenantDb.select(schema.businessProfiles),
+    tenantDb.global.query.orgs.findFirst({ where: eq(schema.orgs.id, tenantDb.orgId) }),
+    aggregateIncomeTaxYear(tenantDb, job.year),
+  ]);
+  if (!profile) throw new Error(`business profile missing for org ${tenantDb.orgId}`);
+
+  const html = buildBookkeeperSummaryHtml(org?.name ?? "Kwartaal", profile, data);
+  const pdf = await renderBookkeeperSummaryPdf(env, html);
+  const key = `${tenantDb.orgId}/summaries/${job.id}.pdf`;
+  await env.RECEIPTS.put(key, pdf, { httpMetadata: { contentType: "application/pdf" } });
+  return key;
 }

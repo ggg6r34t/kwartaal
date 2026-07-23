@@ -429,45 +429,223 @@ recovery action, never a bare warning; "compliant" never appears — tested).
    exactly once); the actual Resend HTTP call is untested. Needs a key and
    one real send before trusting delivery end to end.
 
+## Pillar 4: Annual studio + Money + Vault — complete
+
+Income tax studio, Money, and Vault all live against the real engine and a
+real data model; R2 receipt capture with the six-element checklist;
+start-up costs with live depreciation schedules; the account-wide
+export-zip and the annual bookkeeper-summary PDF, both properly queued
+through `ExportJob` rather than built inline in a request handler. Full
+gate green including a live smoke test; the Browser Rendering path is
+verified to fail gracefully (not crash) where it can't be exercised
+locally.
+
+### What's done
+
+**Schema additions** (migration `0002_odd_network.sql`): `export_jobs`
+gained `kind` (`"data" | "bookkeeper_summary"`, default `"data"`) and a
+nullable `year` — the two together are how one `ExportJob`/`ExportQueueMessage`
+pair now serves both the full-account zip and the annual PDF, instead of
+adding a parallel job table.
+
+**Engine wiring** (no new pure functions this pillar — Pillar 2's engine
+already covered everything needed):
+
+- `buildDepreciationSchedule` is now actually called from
+  `POST /quarters/:id/expense-lines` when `deductionMode: "depreciate"`,
+  persisting a `DepreciationSchedule` row (`annualCents` derived from the
+  computed schedule's year-2 entry, falling back to year-1 for a
+  single-year schedule).
+- `apps/api/src/lib/income-tax-aggregate.ts` — one `aggregateIncomeTaxYear`
+  function shared by `GET /income-tax/:year` and the bookkeeper-summary PDF
+  builder, so the screen and the handoff document can never show different
+  numbers for the same year.
+
+**API routes** (all new this pillar):
+
+- `GET /income-tax/:year` — profit built live from every quarter's lines
+  regardless of status ("so far" is honest about a partial year), hours
+  from `HoursEntry`, `computeWaterfall` + `estimateIncomeTax` run against
+  the seeded `TaxFigures` row. No row for the year → `figuresPending: true`
+  with every figures-dependent field null, calendar data still populated
+  (Pillar 1's App Additions "figures pending" surface is now real).
+- `GET/POST /hours-entries`, `GET/POST /km-entries` (km is the literal
+  stub the plan calls for — no route/mileage computation, just a logged
+  row).
+- `GET/POST /money/pots`, `PATCH /money/pots/:id` (the "manual monthly
+  review ritual" — no bank connection, the user types what's in each pot).
+- `GET/POST /money/set-aside-entries` — persists a per-invoice
+  `splitInvoice` result.
+- `GET /money/voorlopige-aanslag/:year`, `PUT /money/voorlopige-aanslag` —
+  upserts the year's row, then **rematerializes only that year's
+  `voorlopige_aanslag`-kind deadlines** (delete-then-insert via
+  `deadlinesForYear`), leaving the `btw_q`/`income_tax` rows from
+  onboarding untouched. Live-verified: activating produces exactly the
+  monthly deadline rows the schedule preview promises.
+- `GET/POST /receipts`, `GET /receipts/:id/file`,
+  `PATCH /receipts/:id/checklist` — content-type allow-list (jpeg/png/
+  webp/pdf), 8 MB cap, a **per-org** daily upload cap (distinct from the
+  IP-keyed rate-limit middleware, which can't express "per org"), six
+  checklist elements initialized unconfirmed, `missingCount` recomputed on
+  every PATCH. Live-verified round-trip through R2 including the actual
+  file bytes.
+- `GET /startup-costs` — cross-quarter by design (start-up costs predate
+  registration, they don't belong to one quarter's checklist); depreciated
+  lines get their full year-by-year schedule recomputed live from
+  `buildDepreciationSchedule`, never re-read from a stored breakdown (only
+  the inputs are persisted).
+- `GET/POST /export-jobs`, `GET /export-jobs/:id/file` — enqueues onto
+  `EXPORT_QUEUE`, never builds inline (the plan's async rule explicitly
+  names export-zip builds; the annual PDF gets the same treatment for the
+  same reason — Browser Rendering cold-starts are not request-handler
+  material).
+- `queue.ts`'s export consumer — `kind: "data"` zips every tenant table as
+  JSON plus the actual receipt files fetched from R2; `kind:
+"bookkeeper_summary"` renders `aggregateIncomeTaxYear`'s output to HTML
+  and prints it via `@cloudflare/puppeteer` + the `BROWSER` binding. Both
+  paths flip the `ExportJob` to `completed`/`failed` and audit either way.
+
+**Web** (`apps/web/src/routes/`):
+
+- `IncomeTax.tsx` — profit bars, the deduction-stack cards (waterfall,
+  each step's eligibility/reason from the engine, not hardcoded), the
+  bracket vessels, credits/Zvw lines, the hatched "estimated tax to set
+  aside" card, and a figures-pending variant matching the App Additions
+  design (dashed borders, no numbers claimed that depend on unpublished
+  rates). The handoff section's "Export this summary for my bookkeeper"
+  button drives the full enqueue → poll → download flow against the new
+  `bookkeeper_summary` export-job kind.
+- `Money.tsx` — the invoice splitter (same `splitInvoice` the engine golden-
+  tests, persists via `set-aside-entries` when given an invoice reference),
+  a pots grid with inline "tap to review" editing and the hatched
+  not-yours treatment on any pot literally named Taxes/Belasting, and the
+  voorlopige aanslag decision card with a live schedule preview.
+- `Vault.tsx` — search + year filter, receipt capture (file picker → R2
+  upload → live six-element checklist), the urencriterium ring fed by
+  `GET /income-tax/:year`'s `hoursLogged`/`hoursTarget` (one aggregation,
+  reused rather than re-derived), a recent-records table merging receipts
+  and km entries, the start-up costs corner with the €450 rule applied
+  automatically at add-time and the live depreciation-schedule visual, and
+  the account-wide "Export everything for my bookkeeper (.zip)" button.
+
+### Gate results
+
+| Check                                                                    | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm run typecheck` (4 workspaces)                                       | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `npm test` (128 tests total: 93 core + 4 db + 19 api + 9 web, 3 skipped) | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `npm run lint`                                                           | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `npm run format:check`                                                   | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `npm run token-check`                                                    | ✅ 0 violations, 0 exceptions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  |
+| `npm run build:web`                                                      | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
+| `wrangler deploy --dry-run` (API)                                        | ✅ (2.96 MB / 524 KB gzip — the size jump is `@cloudflare/puppeteer`)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| Live API smoke test                                                      | ✅ Fresh signup on live `wrangler dev`: onboarding → depreciated expense line (verified the `DepreciationSchedule` row's `annualCents` matches `buildDepreciationSchedule`'s output exactly) → two start-up costs, one over/one under €450 (verified `GET /startup-costs` auto-buckets correctly with a live year-by-year schedule) → hours/km entries → pot create + review PATCH → set-aside-entry (bands verified) → voorlopige aanslag activate (verified the exact monthly deadline rows) → receipt upload → checklist PATCH → file round-trip through R2 (byte-identical) → `GET /income-tax/2026` (waterfall/brackets render, ineligibility reasons correct for un-met urencriterium) → `POST /export-jobs {kind:"data"}` → queue-consumed to `completed` → downloaded zip contains all 10 JSON tables plus the real receipt file → `POST /export-jobs {kind:"bookkeeper_summary"}` → queue-consumed to `failed` (Browser Rendering unavailable in local `wrangler dev`, exactly as expected — confirms the failure path doesn't crash the worker or leave a job stuck) |
+| Frontend verification                                                    | ⚠️ **No browser automation tool is available in this environment** (same standing limitation as Pillars 1 and 3). Verified: production build succeeds, all three new screens (`IncomeTax.tsx`, `Money.tsx`, `Vault.tsx`) transform cleanly through Vite with no syntax/type errors, all unit tests pass. **Not verified**: actual interactive rendering, click-through behavior, or visual fidelity in a real browser.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+### Deviations / notes
+
+1. **Corrected my own design mistake before it shipped**: I initially built
+   the bookkeeper-summary PDF as a per-quarter rubriek handoff document
+   (`quarterId`-scoped), reading the plan's Pillar-3-area VAT handoff
+   section too literally. Re-checking the plan's actual feature inventory
+   (line ~231: "handoff checklist incl. DigiD/eHerkenning note, extension
+   path, bookkeeper summary export") and the docs/design Income-tax-studio
+   screen (its own "Export this summary for my bookkeeper" button) showed
+   the summary is the **annual** income-tax handoff, not a quarter's VAT
+   mirror. Fixed before generating the first migration against a live DB —
+   `export_jobs` targets `year`, not `quarterId`, and the PDF renders the
+   same `aggregateIncomeTaxYear` output the screen shows.
+2. **No dedicated design mockup exists for the bookkeeper-summary PDF
+   itself** (docs/design has the screen button, not the printed document).
+   `bookkeeper-summary.ts` builds a plain, functional table layout rather
+   than a pixel-matched export — flagging per the standing instruction
+   rather than silently presenting it as a design-faithful artifact.
+3. **The €450 start-up-cost deduct-vs-depreciate threshold is applied
+   automatically** at add-time in `Vault.tsx` (over €450 ex-VAT → 5-year
+   depreciation, `residualCents: 0`, `startMonth` from the entry's own
+   date) rather than exposing raw depreciation parameters to the user —
+   matches the design's framing of this as a rule the product applies, not
+   a decision the user makes line by line. `buildDepreciationSchedule`
+   itself stays generic (Pillar 2 already noted the threshold is a UI-level
+   decision, not an engine one).
+4. **Start-up costs attach to the org's earliest quarter**, since
+   `expense_lines.quarter_id` is `NOT NULL` and start-up costs by
+   definition predate any quarter's filing period — the line's own `date`
+   preserves the real (pre-registration) date; only the FK target is
+   borrowed. This is a schema-shape consequence, not a plan requirement,
+   and worth revisiting if a future pillar wants start-up costs to be
+   fully quarter-independent.
+5. **The Vault's "Recent records" table shows receipts and km entries
+   only**, not invoice/expense lines from VAT quarters (the design mockup
+   shows both). Income/expense lines live inside quarters with no existing
+   "all lines for a year across quarters" endpoint; adding one felt like
+   scope creep for a table that's secondary to the checklist/depreciation
+   work this pillar's gate cares about. Flagging as a known gap rather
+   than silently shipping a subset without saying so.
+6. **Only one new unit test file this pillar**
+   (`lib/bookkeeper-summary.test.ts`, 3 tests including an XSS-escaping
+   check on the PDF's HTML input) — every new API route depends on
+   `TenantDb`/D1 and there's no test-DB harness yet (Pillar 1-3 didn't
+   build one either; `calculator.test.ts` is the only existing route test,
+   and it works precisely because that route is public/DB-free). The new
+   routes are wiring over Pillar 2's already-golden-tested engine
+   functions (`buildDepreciationSchedule`, `splitInvoice`,
+   `computeWaterfall`, `estimateIncomeTax`), and were exercised end-to-end
+   in the live smoke test above, but that's not the same guarantee as
+   automated coverage. A D1-backed route-test harness would close this gap
+   and is worth prioritizing before Pillar 5 adds Stripe webhooks on top.
+7. **`@cloudflare/puppeteer` and `fflate` are the two new dependencies**
+   this pillar adds (both flagged in the preflight's "starter kit" list as
+   expected Pillar 4 additions), no others.
+
 ## Deferred to their pillar (not gaps — sequencing per the Build order)
 
 - CSV import UI (upload + column-mapping widget) and the named import
   adapters (blocked on `docs/import-formats/` samples, which still don't
   exist) → follow-up within **Pillar 3's** scope, not yet done.
-- Income tax studio, Money, Vault screens, R2 receipt uploads, export-zip →
-  **Pillar 4**.
+- Vault's "Recent records" table doesn't yet include invoice/expense lines
+  from VAT quarters (see Pillar 4 deviation #5) → natural follow-up
+  whenever a cross-quarter lines endpoint is built, no fixed pillar.
+- A D1-backed route-test harness, to close the automated-coverage gap
+  flagged in Pillar 4 deviation #6 → worth doing before Pillar 5's Stripe
+  webhooks add more untested route surface.
 - Marketing site (7 `Kwartaal Site *.dc.html` screens are in `docs/design`
   and confirmed complete — just not built yet), Stripe billing, paywall
   interstitial wiring → **Pillar 5**.
-- Playwright e2e (this pillar's frontend work has never been browser-tested
-  — see the gate table above), backup rehearsal, production cutover →
-  **Pillar 6**.
+- Playwright e2e (this pillar's and Pillar 3's frontend work has never
+  been browser-tested — see the gate tables above), backup rehearsal,
+  production cutover → **Pillar 6**.
 
-## External resources — still needed, none blocking Pillar 4
+## External resources — still needed, none blocking Pillar 5
 
 - **Sentry DSN** — optional; degrades to structured console.error /
   `wrangler tail` today.
 - **Stripe test account** — needed for Pillar 5.
-- **Resend API key + verified domain** — dev-logs mode covers local testing
-  and this pillar's reminder-idempotency verification; a real key is needed
-  before trusting actual reminder delivery, and required before Pillar 6
-  launch.
+- **Resend API key + verified domain** — dev-logs mode covers local testing;
+  a real key is needed before trusting actual reminder delivery, and
+  required before Pillar 6 launch.
 - **Custom domain(s)** — Pillar 6 cutover.
 - **`docs/import-formats/` sample exports** — needed to build the three
   named import adapters (generic CSV path doesn't need them; still blocked,
   three `it.skip` markers waiting).
+- **Browser Rendering access, confirmed against a real deployed
+  environment** — the local-dev failure path is now verified graceful
+  (job → `failed`, no crash), but the actual PDF has never been generated
+  for real; verify `[browser]` access and the rendered output the first
+  time staging is exercised.
 - Staging/production R2 buckets and Queues — self-provisionable, no user
-  action needed; will create them when Pillar 4 (R2) actually exercises
-  those environments.
+  action needed; still placeholder names in `wrangler.toml`, to be created
+  when Pillar 5/6 actually exercises those environments.
 - **A real browser-testing capability** (Playwright, or manual click-through
-  access) — this pillar shipped a large amount of frontend code verified
-  only at the build/transform/unit-test level, never rendered. Worth
-  closing before Pillar 4 adds more UI on top of it.
+  access) — Pillars 3 and 4 together have shipped a large amount of
+  frontend code verified only at the build/transform/unit-test level,
+  never rendered. Worth closing before Pillar 5 adds the marketing site and
+  billing flows on top.
 
 ## Next session
 
 Start with: "Read KWARTAAL-BUILD-PLAN.md, CLAUDE.md, and PROGRESS.md,
-continue with Pillar 4." Strongly consider opening the app in an actual
+continue with Pillar 5." Strongly consider opening the app in an actual
 browser first (`npm run dev:api` + `npm run dev:web`) to visually verify
-Pillar 3's onboarding wizard, Today screen, and VAT flow before building
-more on top of them — that verification has not happened yet.
+Pillars 3 and 4's screens before building the marketing site and billing
+flows on top of them — that verification still has not happened.

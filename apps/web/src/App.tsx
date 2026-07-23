@@ -7,6 +7,9 @@ import { SignIn } from "./routes/SignIn";
 import { Onboarding } from "./routes/Onboarding";
 import { Today } from "./routes/Today";
 import { Vat } from "./routes/Vat";
+import { IncomeTax } from "./routes/IncomeTax";
+import { Money } from "./routes/Money";
+import { Vault } from "./routes/Vault";
 import { Glossary } from "./routes/Glossary";
 import { PlaceholderScreen } from "./routes/PlaceholderScreen";
 
@@ -24,22 +27,13 @@ export function App() {
             <Route index element={<Navigate to="today" replace />} />
             <Route path="today" element={<Today />} />
             <Route path="vat" element={<Vat />} />
-            <Route
-              path="income-tax"
-              element={<PlaceholderScreen title="Income tax" pillar={4} />}
-            />
-            <Route
-              path="money"
-              element={<PlaceholderScreen title="Money" pillar={4} />}
-            />
-            <Route
-              path="vault"
-              element={<PlaceholderScreen title="Vault" pillar={4} />}
-            />
+            <Route path="income-tax" element={<IncomeTax />} />
+            <Route path="money" element={<Money />} />
+            <Route path="vault" element={<Vault />} />
             <Route path="glossary" element={<Glossary />} />
             <Route
               path="settings"
-              element={<PlaceholderScreen title="Settings" pillar={4} />}
+              element={<PlaceholderScreen title="Settings" pillar={5} />}
             />
           </Route>
         </Route>

@@ -442,6 +442,10 @@ export const exportJobs = sqliteTable(
     orgId: text("org_id")
       .notNull()
       .references(() => orgs.id, { onDelete: "cascade" }),
+    // kind: "data" (full account export-zip) | "bookkeeper_summary" (annual income-tax handoff print-to-PDF)
+    kind: text("kind").notNull().default("data"),
+    // Only set (and only meaningful) for kind = "bookkeeper_summary" — the tax year it summarizes.
+    year: integer("year"),
     // status: "queued" | "running" | "completed" | "failed"
     status: text("status").notNull().default("queued"),
     r2Key: text("r2_key"),

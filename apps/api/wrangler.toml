@@ -39,8 +39,10 @@ max_batch_size = 5
 max_retries = 3
 
 # Browser Rendering — print-to-PDF of handoff/annual summaries only (Pillar 4).
-# Requires the account to have Browser Rendering enabled; not yet exercised —
-# verify access when Pillar 4 wires the actual PDF build (see PROGRESS.md).
+# Requires the account to have Browser Rendering enabled; confirmed wired
+# correctly in Pillar 4 (fails gracefully to ExportJob status "failed" when
+# unavailable, as it is in local `wrangler dev` — see PROGRESS.md) but not
+# yet exercised against a real deployed Browser Rendering binding.
 [browser]
 binding = "BROWSER"
 

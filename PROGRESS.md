@@ -1495,53 +1495,74 @@ pages.dev` origin → `null` session, 200 — correct for an intentionally
 - `https://kwartaal-production.pages.dev` → full chain reachable, correctly
   returns no session (unseeded, as intended).
 
-### Pages custom domains — attached via API, DNS half BLOCKED (real finding)
+### Pages custom domains — live
 
 Correction to the earlier "dashboard-only" assumption above: Pages custom-
 domain **attachment** is not wrangler-supported but **is** a real REST
 endpoint (`POST /accounts/:id/pages/projects/:project/domains`), and it
-worked cleanly with the existing token:
+worked cleanly with the existing token. The one piece the API doesn't do
+for you (the dashboard flow does, silently) is create the DNS record —
+that needed the token's `Zone → DNS → Edit` permission on the `kwartaal.app`
+zone added after the fact (it initially came back `{"code":10000,
+"message":"Authentication error"}` on every `dns_records` call; the zone's
+own `permissions` field confirmed the gap before the grant and confirmed
+the fix after — `#dns_records:edit`/`#dns_records:read` appeared in that
+same field once added). Both domains are now fully live and verified with
+real requests, not assumed from Cloudflare's own "active" status alone:
 
 - [x] `kwartaal.app` attached to `kwartaal-production`
       (domain id `82f8343d-e5b1-4cf4-acb4-ce59d78dbc7a`).
 - [x] `staging.kwartaal.app` attached to `kwartaal-staging`
       (domain id `ad83f5af-f663-4557-b866-36501950f156`).
+- [x] Zone confirmed via `GET /zones?name=kwartaal.app` (not guessed):
+      `a47130f4c2dc9c245002c71ba5734c5d`.
+- [x] DNS: the apex `kwartaal.app` record was a pre-existing Namecheap
+      parking A-record (`162.255.119.67`, proxied) — **replaced in place**
+      (`PUT .../dns_records/:id`) with a proxied CNAME to
+      `kwartaal-production.pages.dev`. `staging.kwartaal.app` had no
+      existing record; created fresh as a proxied CNAME to
+      `kwartaal-staging.pages.dev`. The zone's pre-existing MX + SPF TXT
+      records (Namecheap email forwarding) were left untouched — out of
+      scope and unrelated to web routing.
+      (Note for next time: the record-type-change `PUT` call returned a
+      deprecation notice — "DNS record type update is deprecated" — still
+      worked, but a future session should use delete+create instead.)
+- [x] Both domains reached `status: active` with a certificate within
+      ~4 minutes of the DNS change (well under the ~15 min budget):
+      production active at +~1.5 min, staging at +~3.5 min.
+- [x] Verified live: `https://kwartaal.app` and `https://staging.kwartaal.app`
+      both resolve with valid Google-issued certs (CN matching, expiring
+      2026-10-21) and return 200. `/api/health` on both returns the
+      correctly-scoped `{"ok":true,"environment":"production"|"staging"}`
+      through the real same-origin proxy — not the Worker's own origin.
+      A full sign-up → sign-in → authenticated `/api/orgs/me` round-trip
+      against `staging.kwartaal.app` succeeded with a real session cookie
+      from the real domain. Maya's seeded demo account signs in on staging
+      too.
+- [x] Both Workers **redeployed** (`wrangler deploy --env staging` /
+      `--env production`) after dropping each environment's `.pages.dev`
+      entry from `APP_ORIGIN` in `wrangler.toml` — a `wrangler.toml` edit
+      alone doesn't touch what's already live. Re-verified after redeploy:
+      the staging smoke suite (below) still passes, and — confirming the
+      origin-trust actually tightened, not just "nothing broke" — a
+      sign-in attempt with `Origin: https://kwartaal-staging.pages.dev` (or
+      the production equivalent) now correctly gets `403`.
+- [x] `e2e/playwright.staging.config.ts` + `e2e/tests/staging-smoke.spec.ts`
+      (`npm run smoke:staging` from `e2e/`): health check, marketing home
+      page, and Maya sign-in + Today render, all against the real
+      `staging.kwartaal.app` — deliberately narrow and deliberately
+      separate from the local dev-stack suite, since `helpers.ts`'s
+      `d1Execute`/`d1QueryFirst` assume a local `wrangler dev` D1 file with
+      no remote equivalent here. (Caught one real bug writing this: the
+      standalone Playwright `request` fixture is a _different_ cookie jar
+      than `page`'s — had to switch to `context.request` for the sign-in
+      call to actually authenticate the subsequent `page.goto()`, matching
+      why `helpers.ts`'s own `apiSignUp` already threads `context`
+      through explicitly.)
 
-Both came back `zone_tag: a47130f4c2dc9c245002c71ba5734c5d` — confirmed via
-a separate `GET /zones?name=kwartaal.app` (not assumed from the attach
-response) to be the real `kwartaal.app` zone, `status: active`, correctly
-delegated to Cloudflare's nameservers.
-
-**BLOCKED — real permission gap, stopped per instruction, not worked
-around:** the Pages API does not auto-create DNS (only the dashboard flow
-does). Both domains sit in `status: initializing`/`pending` with
-`verification_data.error_message: "CNAME record not set"` — they cannot go
-active without the CNAME. `GET /zones/:zone_id/dns_records` on the
-`kwartaal.app` zone returns `{"success":false,"errors":[{"code":10000,
-"message":"Authentication error"}]}` with the current token. The zone's own
-`permissions` field (returned on the same `GET /zones` call above) lists
-`#zone:read, #zone_settings:read, #worker:edit, #worker:read` — no DNS
-permission at all, consistent with the error.
-
-**Exact scope needed:** in the Cloudflare dashboard, edit the existing API
-token (My Profile → API Tokens) and add the permission group **Zone → DNS →
-Edit**, scoped to the `kwartaal.app` zone (or "All zones" if simpler) —
-takes effect immediately, no new token/rotation needed. Once granted, the
-remaining steps are mechanical and unblock in one pass:
-
-1. `POST /zones/a47130f4c2dc9c245002c71ba5734c5d/dns_records` — proxied
-   CNAME `kwartaal.app` → `kwartaal-production.pages.dev`, and
-   `staging.kwartaal.app` → `kwartaal-staging.pages.dev` (check first via
-   `GET .../dns_records?name=...` and replace any existing record rather
-   than duplicate).
-2. Poll `GET .../pages/projects/:project/domains/:domain` until
-   `status: active` with the cert issued (up to ~15 min).
-3. Verify both hostnames resolve with valid certs, `/health` responds
-   through the same-origin proxy on the real hostname, and one full auth
-   round-trip works on `staging.kwartaal.app`.
-4. Drop each environment's `.pages.dev` entry from `APP_ORIGIN` in
-   `wrangler.toml` (see point 8 above), point the staging Playwright base
-   URL at `staging.kwartaal.app`, and check this section off for real.
+**Live URLs**: `https://kwartaal.app`, `https://staging.kwartaal.app`,
+`https://api.kwartaal.app` (unchanged), `https://kwartaal-api-staging.
+<account-subdomain>.workers.dev` (unchanged).
 
 ### Still open
 

@@ -13,7 +13,10 @@ export default defineConfig({
   testDir: "./tests",
   // accessibility.spec.ts runs under its own config (playwright.a11y.config.ts)
   // against `vite preview`, not this dev-stack webServer pair.
-  testIgnore: /accessibility\.spec\.ts/,
+  // staging-smoke.spec.ts runs under playwright.staging.config.ts against
+  // the real staging.kwartaal.app — without this it would still match here
+  // and silently run against localhost:5173 instead, defeating the point.
+  testIgnore: /accessibility\.spec\.ts|staging-smoke\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,

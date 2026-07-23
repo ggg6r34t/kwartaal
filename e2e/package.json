@@ -5,7 +5,8 @@
   "type": "module",
   "scripts": {
     "e2e": "playwright test",
-    "a11y": "playwright test --config=playwright.a11y.config.ts"
+    "a11y": "playwright test --config=playwright.a11y.config.ts",
+    "smoke:staging": "playwright test --config=playwright.staging.config.ts"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.12.1",

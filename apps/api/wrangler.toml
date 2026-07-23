@@ -86,10 +86,11 @@ name = "kwartaal-api-staging"
 [env.staging.vars]
 ENVIRONMENT = "staging"
 BETTER_AUTH_URL = "https://kwartaal-api-staging.ykn-ghyorka.workers.dev"
-# Both trusted: staging.kwartaal.app is the intended custom domain (not yet
-# attached), the .pages.dev URL is the actually-reachable origin until it
-# is — drop the .pages.dev entry once the custom domain is live.
-APP_ORIGIN = "https://staging.kwartaal.app,https://kwartaal-staging.pages.dev"
+# staging.kwartaal.app is live (custom domain attached, DNS + cert real —
+# see PROGRESS.md's "Pages custom domains" section). The .pages.dev origin
+# is deliberately no longer trusted here — dropped on cutover, verified a
+# sign-in from that Origin now 403s.
+APP_ORIGIN = "https://staging.kwartaal.app"
 EMAIL_FROM = "Kwartaal <hello@mail.kwartaal.app>"
 # Staging email safety hard rule (PROGRESS.md's "Environment" section):
 # comma-separated recipient allow-list — anything not on it is logged, not
@@ -153,11 +154,11 @@ routes = [{ pattern = "api.kwartaal.app", custom_domain = true }]
 [env.production.vars]
 ENVIRONMENT = "production"
 BETTER_AUTH_URL = "https://api.kwartaal.app"
-# Both trusted: kwartaal.app is the intended Pages custom domain (not yet
-# attached — dashboard-only, see PROGRESS.md), the .pages.dev URL is the
-# actually-reachable origin until it is — drop the .pages.dev entry once
-# the custom domain is live.
-APP_ORIGIN = "https://kwartaal.app,https://kwartaal-production.pages.dev"
+# kwartaal.app is live (custom domain attached, DNS + cert real — see
+# PROGRESS.md's "Pages custom domains" section). The .pages.dev origin is
+# deliberately no longer trusted here — dropped on cutover, verified a
+# sign-in from that Origin now 403s.
+APP_ORIGIN = "https://kwartaal.app"
 EMAIL_FROM = "Kwartaal <hello@mail.kwartaal.app>"
 STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"

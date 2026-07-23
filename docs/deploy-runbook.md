@@ -15,11 +15,13 @@ product in the same account).
 what was verified with real HTTP requests).
 
 - **Pages**: `kwartaal-staging` and `kwartaal-production` are both real,
-  deployed projects. `staging.kwartaal.app` / `kwartaal.app` custom domains
-  are **attached but not yet live** — see the checklist below; both are
-  reachable today at their `.pages.dev` URLs. No Git connection on either —
-  deploys are manual via `wrangler pages deploy`, triggered on green, never
-  automatic on push.
+  deployed projects, both with their custom domain (`staging.kwartaal.app`
+  / `kwartaal.app`) **live**: DNS, cert, and `APP_ORIGIN` all real — see the
+  checklist below. Their `.pages.dev` URLs still exist but are
+  intentionally no longer trusted origins (dropped from `APP_ORIGIN` on
+  cutover; a sign-in attempt with that `Origin` now gets a real `403`,
+  verified). No Git connection on either — deploys are manual via
+  `wrangler pages deploy`, triggered on green, never automatic on push.
 - **Pages custom domains are API-reachable, not wrangler-supported —
   don't assume dashboard-only.** `wrangler pages` has no domain-attach
   subcommand, which reads like "dashboard only," but the REST endpoint
@@ -99,33 +101,27 @@ requires to be visible in `wrangler tail`.
 
 ## Staging → production cutover checklist
 
-Most of the infrastructure is done — what's left either needs one
-dashboard-granted token permission (see below — everything else about
-domain attachment is API-reachable, not dashboard-only) or real external
-credentials this environment still doesn't have.
-
-**BLOCKED on a token permission, not a dashboard-only operation:**
-
-- [x] `kwartaal.app` attached to `kwartaal-production` via the Pages API.
-- [x] `staging.kwartaal.app` attached to `kwartaal-staging` via the Pages API.
-- [ ] Both need a proxied CNAME to their `.pages.dev` origin before they'll
-      go `active` — blocked on the token missing `Zone → DNS → Edit` on the
-      `kwartaal.app` zone (`GET dns_records` returns `Authentication
-      error`). Exact remaining steps and the zone ID are in PROGRESS.md's
-      "Pages custom domains" section — mechanical once the scope is
-      granted, no further investigation needed.
-      After either goes live, drop that environment's `.pages.dev` entry
-      from its `APP_ORIGIN` in `wrangler.toml` (it's there now only because
-      the custom domain isn't live yet), and point the staging Playwright
-      base URL at `staging.kwartaal.app`.
+Domain attachment/DNS/redeploy is now fully done. What's left is real
+external credentials this environment still doesn't have — see PROGRESS.md
+for the full narrative (Pages custom domains, and the earlier "Environment"
+section).
 
 **Done and verified with real HTTP requests (see PROGRESS.md's
-"Environment" section for the full narrative):**
+"Pages custom domains" and "Environment" sections for the full narrative):**
 
 - [x] `kwartaal-api-staging` and `kwartaal-api-production` deployed;
       `api.kwartaal.app` attached and confirmed live.
 - [x] `kwartaal-staging` and `kwartaal-production` Pages projects deployed,
       each wired to its matching Worker via a real `[[services]]` binding.
+- [x] `kwartaal.app` and `staging.kwartaal.app` attached via the Pages API,
+      DNS created (apex CNAME replaced a pre-existing Namecheap parking
+      A-record; staging created fresh), both `active` with a valid cert
+      within minutes. Both Workers redeployed with `.pages.dev` dropped
+      from `APP_ORIGIN`; re-verified live afterward, including confirming
+      the dropped origin is now genuinely rejected (403), not just assumed.
+      `npm run smoke:staging` (from `e2e/`) proves it end to end against
+      the real hostname: health check, marketing page, and a real Maya
+      sign-in + Today render.
 - [x] R2 buckets and queues created for both environments.
 - [x] Staging D1: migrations + Maya seed loaded for real. Production D1:
       migrations applied (schema only) — intentionally left unseeded, zero

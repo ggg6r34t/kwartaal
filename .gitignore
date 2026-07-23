@@ -6,6 +6,8 @@ dist-ssr/
 .wrangler/
 .dev.vars
 .dev.vars.*
+.env
+.env.*
 *.log
 .DS_Store
 packages/db/.bootstrap/
@@ -15,3 +17,7 @@ coverage/
 e2e/test-results/
 e2e/playwright-report/
 e2e/blob-report/
+# Transient — copied from apps/web/deploy/wrangler.{staging,production}.toml
+# right before a Pages deploy, then removed. See that directory's own
+# comments for why `wrangler pages deploy` needs it at exactly this path.
+apps/web/wrangler.toml

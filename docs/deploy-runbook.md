@@ -9,29 +9,51 @@ buckets, queues, and vars, never shared across environments (see
 PROGRESS.md's "Environment" section for the full topology decision this
 mirrors — the account's existing Provata layout).
 
-- **Pages**: `kwartaal-staging` → `staging.kwartaal.app`; `kwartaal-production`
-  → `kwartaal.app`. No Git connection — deploys are manual via
-  `wrangler pages deploy`, triggered on green, never automatic on push.
-- **Workers**: `kwartaal-api-staging` → its `workers.dev` hostname (no custom
-  domain needed); `kwartaal-api-production` → `api.kwartaal.app`. Either way
-  the browser never calls the API domain directly — only the Pages project's
-  same-origin proxy Function does (`apps/web/functions/api/[[path]].ts`),
-  via an `API` Fetcher **service binding** configured per-Pages-project (this
-  is Pages-side config, not something `wrangler.toml` declares — set it at
-  deploy time or in the dashboard, matching `kwartaal-staging` Pages to
-  `kwartaal-api-staging` Worker and `kwartaal-production` to
-  `kwartaal-api-production`). Getting this cross-wired (staging Pages →
+**Everything below is real and deployed**, not a plan — see PROGRESS.md's
+"Environment" section for the full narrative (what broke, what got fixed,
+what was verified with real HTTP requests).
+
+- **Pages**: `kwartaal-staging` and `kwartaal-production` are both real,
+  deployed projects. `staging.kwartaal.app` / `kwartaal.app` custom domains
+  are **not yet attached** (dashboard-only, see the checklist below) — both
+  are reachable today at their `.pages.dev` URLs. No Git connection on
+  either — deploys are manual via `wrangler pages deploy`, triggered on
+  green, never automatic on push.
+- **Workers**: `kwartaal-api-staging` (its `workers.dev` hostname) and
+  `kwartaal-api-production` (`api.kwartaal.app`, a real attached Worker
+  custom domain, verified with a live `curl`) are both deployed. Either way
+  the browser never calls the API domain directly — only the Pages
+  project's same-origin proxy Function does
+  (`apps/web/functions/api/[[path]].ts`), via an `API` Fetcher **service
+  binding**. That binding is now committed config, not a manual flag:
+  `apps/web/deploy/wrangler.staging.toml` / `wrangler.production.toml`.
+  This wrangler version rejects `pages deploy --config <path>`, and Pages
+  Functions auto-detection needs `functions/` as a literal sibling of
+  `wrangler.toml` — so deploying either environment means, from `apps/web`:
+  ```
+  cp deploy/wrangler.staging.toml wrangler.toml   # or wrangler.production.toml
+  npx wrangler pages deploy dist --branch=main
+  rm wrangler.toml
+  ```
+  `apps/web/wrangler.toml` is gitignored and only ever exists transiently
+  during a real deploy. Getting the env cross-wired (staging Pages →
   production Worker, or vice versa) would be a real, easy-to-make mistake —
-  double check it after every Pages project (re)creation.
+  double check the deployed `[[services]]` binding matches after any
+  redeploy by hitting `/api/auth/get-session` through that Pages origin.
 - **Resource naming**: R2 buckets and queues follow the `-staging`/
   `-production` suffix convention in `wrangler.toml` (D1 already did, since
-  Pillar 1). **The buckets and queues themselves are not provisioned yet** —
-  the wrangler token available when this was last worked on could
-  authenticate (`wrangler whoami` succeeded) but had no account-level API
-  permissions (every `d1 list`/`r2 bucket list`/`queues list`/
-  `pages project list` call failed with a `/memberships` auth error, code
-  10000) — provisioning needs either a broader-scoped token or dashboard
-  access.
+  Pillar 1) — **all created for real**: `wrangler r2 bucket create` and
+  `wrangler queues create` (the latter needed
+  `--message-retention-period-secs 86400` explicitly — this wrangler
+  version's default of 345600s/4 days exceeds the live API's current
+  86400s/1 day max).
+- **Account access**: `wrangler d1`/`r2`/`queues` subcommands need
+  `account_id` pinned in `wrangler.toml` (wrangler's own account
+  auto-discovery fails under a scoped token otherwise — a `/memberships`
+  error, easy to misread as a permissions problem). `wrangler pages`
+  subcommands are different again — they ignore `wrangler.toml`'s
+  `account_id` entirely and need `CLOUDFLARE_ACCOUNT_ID` set as an actual
+  environment variable.
 
 The web app (`apps/web`) builds to a static SPA + SSR shell
 (`npm run build -w @kwartaal/web`) deployed as a Cloudflare Pages project;
@@ -62,29 +84,42 @@ requires to be visible in `wrangler tail`.
 
 ## Staging → production cutover checklist
 
-Everything below requires real Cloudflare/Stripe/Resend/Sentry credentials
-this environment does not have — **BLOCKED**, not attempted. Listed here so
-the checklist exists and each item has a concrete, checkable definition of
-done rather than being deferred vaguely.
+Most of the infrastructure is done — what's left either needs the
+dashboard specifically (domain attachment is not a wrangler CLI operation
+for Pages custom domains) or real external credentials this environment
+still doesn't have.
 
-- [ ] `kwartaal.app` custom domain attached to the `kwartaal-production`
-      Pages project; `kwartaal-api-production` Worker gets `api.kwartaal.app`
-      (both already the target values in `wrangler.toml` — this item is the
-      actual DNS/dashboard attachment, not a config edit).
-- [ ] `staging.kwartaal.app` attached to `kwartaal-staging` Pages, same idea.
-- [ ] Pages↔Worker `API` service bindings wired per environment (see
-      "Environments" above) — verify by hitting `/api/auth/get-session`
-      through each Pages origin and confirming it reaches the matching-env
-      Worker, not the other one.
-- [ ] R2 buckets (`kwartaal-storage-staging`, `kwartaal-backups-staging`,
-      and the `-production` pair) and queues (`kwartaal-reminders-*`,
-      `kwartaal-exports-*`) actually created — named correctly in
-      `wrangler.toml` already, not yet provisioned (see "Environments" above
-      for why: a token-permission blocker, not a config gap).
+**Dashboard-only, not attempted from here:**
+
+- [ ] Attach `kwartaal.app` to the `kwartaal-production` Pages project.
+- [ ] Attach `staging.kwartaal.app` to the `kwartaal-staging` Pages project.
+      After either, drop that environment's `.pages.dev` entry from its
+      `APP_ORIGIN` in `wrangler.toml` (it's there now only because the
+      custom domain isn't live yet).
+
+**Done and verified with real HTTP requests (see PROGRESS.md's
+"Environment" section for the full narrative):**
+
+- [x] `kwartaal-api-staging` and `kwartaal-api-production` deployed;
+      `api.kwartaal.app` attached and confirmed live.
+- [x] `kwartaal-staging` and `kwartaal-production` Pages projects deployed,
+      each wired to its matching Worker via a real `[[services]]` binding.
+- [x] R2 buckets and queues created for both environments.
+- [x] Staging D1: migrations + Maya seed loaded for real. Production D1:
+      migrations applied (schema only) — intentionally left unseeded, zero
+      accounts.
+- [x] Real `BETTER_AUTH_SECRET` generated and set via `wrangler secret put`
+      for both environments.
+- [x] Cron triggers registered in both environments (required fixing a
+      real Cloudflare-API cron-syntax rejection — day-of-week `0` for
+      Sunday isn't accepted, `7` is — see PROGRESS.md).
+
+**Still open:**
+
 - [ ] `EMAIL_ALLOWLIST` set to real addresses for `[env.staging]` (currently
-      `REPLACE_WITH_STAGING_EMAIL_ALLOWLIST`) — staging must never send to
-      an arbitrary recipient; see PROGRESS.md's "Environment" section and
-      `email/resend.test.ts` for the enforced rule.
+      `REPLACE_WITH_STAGING_EMAIL_ALLOWLIST` — staging is live but blocks
+      every send until this is set); see PROGRESS.md's "Environment"
+      section and `email/resend.test.ts` for the enforced rule.
 - [ ] Live Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` via
       `wrangler secret put --env production`) and real
       `STRIPE_PRICE_MONTHLY`/`STRIPE_PRICE_ANNUAL` price IDs — see PROGRESS.md,
@@ -99,14 +134,17 @@ done rather than being deferred vaguely.
       `docs/tax-figures.md`).
 - [ ] Uptime monitor pointed at `GET /health/ready` (200 = DB reachable,
       503 = not — see `apps/api/src/routes/health.ts`).
-- [ ] Cron verified firing in production (see `wrangler tail` step above).
+- [ ] Cron verified firing on schedule over real wall-clock time (triggers
+      are registered and confirmed correct — see above — but no tick has
+      been observed yet; watch `wrangler tail --env production` at the top
+      of an hour).
 
 ## Backup & restore
 
 ### How the weekly backup works
 
 `apps/api/src/lib/backup.ts`'s `runWeeklyBackup`, invoked from the
-`"0 3 * * 0"` branch of `scheduled.ts`'s cron handler: enumerates every real
+`"0 3 * * 7"` branch of `scheduled.ts`'s cron handler: enumerates every real
 D1 table via `PRAGMA table_list` (filtering out SQLite's own `sqlite_%`
 tables, Cloudflare's internal `_cf_%` tables, and `d1_migrations`), dumps
 each table's full row set to its own `<table>.json`, zips them into
@@ -146,8 +184,9 @@ correctly caps at 8.
 ### What was actually rehearsed (2026-07-23, local)
 
 A full disaster-recovery drill was run against the real local dev D1 (not
-staging — no staging Cloudflare credentials exist in this environment; see
-the cutover checklist above):
+staging — at the time, no staging Cloudflare credentials existed in this
+environment; staging is real now, see "Environments" above, but this
+specific rehearsal has not yet been repeated against it):
 
 1. Confirmed the seeded local dev D1 (`kwartaal`, `--local`) had real data:
    4 orgs, 16 quarters, 5 users, 4 income lines.
@@ -185,13 +224,13 @@ restore procedure above uses this app's own per-table JSON backup (already
 proven correct by `backup-and-deletion.test.ts`) with an explicit
 dependency-ordered, per-table import rather than one interleaved dump — that
 approach was reasoned through but not yet executed end-to-end against a real
-D1 in this session (writing and running the per-table SQL generator is the
-next concrete step, tracked as follow-up work). Restoring against **real**
-(non-local) D1 via `--remote` goes through Cloudflare's actual D1 import API
-rather than local Miniflare's batching, and is the path that matters for a
-genuine production incident — that path is what the staging rehearsal the
-plan calls for would exercise, and remains **BLOCKED** on staging
-credentials.
+D1 (writing and running the per-table SQL generator is the next concrete
+step, tracked as follow-up work). Restoring against **real** (non-local) D1
+via `--remote` goes through Cloudflare's actual D1 import API rather than
+local Miniflare's batching, and is the path that matters for a genuine
+production incident — that path is what the plan's staging rehearsal
+calls for. Staging is real now (see "Environments" above), so this is no
+longer credential-blocked — it just hasn't been done yet.
 
 ## Health & monitoring
 

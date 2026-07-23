@@ -1238,32 +1238,40 @@ checklist as concrete unchecked items, not vague prose).
 ## Environment
 
 Topology decision (user-supplied, mirroring the account's existing Provata
-layout — Kwartaal's sibling product) — applies to `wrangler.toml` from this
-point forward, not just as a description.
+layout — Kwartaal's sibling product), now **fully live**, not just a plan —
+staging and production are real, deployed, and verified end to end.
 
-- **Pages**: `kwartaal-staging` → `staging.kwartaal.app`;
-  `kwartaal-production` → `kwartaal.app`. No Git connection — deploys are
-  manual, via `wrangler pages deploy`, triggered on green (gate passing),
-  not automatically on push.
-- **Workers**: `kwartaal-api-staging` → its `workers.dev` hostname (no
-  custom domain); `kwartaal-api-production` → `api.kwartaal.app`. Either
-  way, the API domain is the same-origin proxy's upstream only — the
-  browser never calls it directly (see `apps/web/functions/api/[[path]].ts`
-  / `vite.config.ts`'s dev proxy, both of which strip `/api` and forward
-  same-origin specifically so the session cookie stays first-party). The
-  Pages Function's `API` service binding (which Worker it proxies to) is
-  account-side Pages project configuration, not something a committed
-  `wrangler.toml` can declare — it must be set per-project at deploy time
-  (`wrangler pages deploy ... --service API=kwartaal-api-staging`, or the
-  dashboard equivalent), matching Pages project to Worker per environment.
-- **Per-env resources**: separate D1, R2 buckets, and Queues for staging
-  and production, `-staging`/`-production` suffix convention, declared in
-  `wrangler.toml`'s `[env.staging]`/`[env.production]` blocks. Never shared
-  across environments. `wrangler.toml` now uses this naming convention for
-  R2/Queues (previously `REPLACE_WITH_*` placeholders) — D1 was already
-  real and named this way since Pillar 1. **R2 buckets and Queues
-  themselves are still not provisioned** — see below.
-- **HARD RULE — staging email safety**: staging runs the full cron/queue
+- **Pages**: `kwartaal-staging` (real project, deployed) →
+  `staging.kwartaal.app` (custom domain **not yet attached** — dashboard-
+  only, see below); `kwartaal-production` (real project, deployed) →
+  `kwartaal.app` (same). No Git connection on either — deploys are manual,
+  via `wrangler pages deploy`, triggered on green, never automatic on push.
+- **Workers**: `kwartaal-api-staging` (deployed) → its `workers.dev`
+  hostname; `kwartaal-api-production` (deployed) → `api.kwartaal.app`,
+  attached as a real Worker custom domain (`routes = [{ pattern =
+"api.kwartaal.app", custom_domain = true }]` in `[env.production]`) and
+  verified live. Either way, the browser never calls the API domain
+  directly — only the Pages project's same-origin proxy Function does
+  (`apps/web/functions/api/[[path]].ts`). The `API` Fetcher service
+  binding (which Worker each Pages project proxies to) is now **committed
+  config**, not a manual per-deploy flag: `apps/web/deploy/
+wrangler.staging.toml` and `wrangler.production.toml`. This wrangler
+  version rejects `pages deploy --config <path>` outright ("Pages does not
+  support custom paths for the Wrangler configuration file"), and Pages
+  Functions auto-detection needs `functions/` as a literal sibling of
+  wherever `wrangler.toml` lives — so the real deploy procedure is: copy
+  the right per-env file to `apps/web/wrangler.toml` (gitignored,
+  transient), run `wrangler pages deploy dist --branch=main` from
+  `apps/web`, then remove it. Documented in both files' own comments and
+  in `docs/deploy-runbook.md`.
+- **Per-env resources — all real now**: D1 (already was, since Pillar 1),
+  R2 buckets (`kwartaal-storage-staging`/`-backups-staging` and the
+  `-production` pair), and Queues (`kwartaal-reminders-staging`/
+  `-exports-staging` and the `-production` pair) all created for real via
+  `wrangler r2 bucket create` / `wrangler queues create`. Never shared
+  across environments.
+- **HARD RULE — staging email safety**: unchanged from the original
+  decision — staging runs the full cron/queue
   reminder pipeline against real org data but must never deliver email to
   an arbitrary address. `EMAIL_ALLOWLIST` (comma-separated, plain var, not
   secret) gates every send in `email/resend.ts`'s `isAllowedRecipient`: in
@@ -1278,33 +1286,167 @@ point forward, not just as a description.
   a non-allowlisted staging recipient never reaches `fetch`; an
   allowlisted one does (case/whitespace-insensitive match); an empty
   allow-list blocks everything; production sends regardless of what
-  `EMAIL_ALLOWLIST` contains.
+  `EMAIL_ALLOWLIST` contains. **Still a placeholder in the real deployed
+  staging Worker right now** — `EMAIL_ALLOWLIST` is `REPLACE_WITH_STAGING_
+EMAIL_ALLOWLIST`, meaning staging currently blocks _every_ send (the
+  safe failure mode, but not yet configured with real addresses).
 
-**Blocked on account access, not further engineering**: the wrangler token
-available in this environment authenticates (`wrangler whoami` succeeds,
-identifies a real account) but has no account-level API permissions —
-every resource-listing or -creation call (`d1 list`, `d1 info`,
-`r2 bucket list`, `queues list`, `pages project list`) fails with a
-`/memberships` authentication error (code 10000). This means Provata's
-actual existing layout could not be inspected directly to confirm the
-mirror is exact (the topology above was taken as given from the user's
-instruction, not independently verified against the account), and the
-real R2 buckets, Queues, and Pages projects named above do not exist yet —
-`wrangler.toml` now names them correctly, but creating them for real needs
-either a token with broader permissions or dashboard access.
+### Access unblock — both parts resolved
+
+Two separate issues, not one:
+
+1. **`d1`/`r2 bucket`/`queues` listing** — wrangler's own account
+   auto-discovery failing under a scoped token, not a permissions gap.
+   Fixed by pinning `account_id = "147db6fed4f442dd3eb80aae7701ce8a"` at
+   the top of `wrangler.toml`.
+2. **`pages project list` / `pages deploy`** — a **different** mechanism:
+   Pages subcommands don't read `wrangler.toml`'s `account_id` field at
+   all; they need `CLOUDFLARE_ACCOUNT_ID` set as an actual environment
+   variable. Once set, `wrangler pages project list` immediately worked
+   and showed Provata's real projects (`provata-staging`,
+   `provata-production` — confirming "No Git connection" matches the
+   topology description exactly) — the token already had the Cloudflare
+   Pages permission the whole time; it was never a permissions problem.
+
+Re-tested after pinning `account_id` (before the `CLOUDFLARE_ACCOUNT_ID`
+fix was found):
+
+| Command                       | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `wrangler d1 list`            | ✅ works — confirms `kwartaal` / `kwartaal-staging` / `kwartaal-production` (all real, matching the IDs already in `wrangler.toml`), and shows `provata-production` / `provata-staging` exist as sibling D1s.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| `wrangler r2 bucket list`     | ✅ works — confirms `kwartaal-storage` / `kwartaal-backups` (dev) exist; **no staging/production Kwartaal buckets exist yet**. Provata's real R2 buckets are named `provata-assets-production` / `provata-assets-staging` — note the `-assets-` middle segment, i.e. Provata's actual convention is `<product>-<resource>-<env>`, not a bare `<env>` suffix on the resource name. Kwartaal's own R2 bindings are already named `RECEIPTS`/`BACKUPS` (two buckets, not one "assets" bucket), so this doesn't map 1:1 — `wrangler.toml` currently uses `kwartaal-storage-staging`/`kwartaal-backups-staging` (and the `-production` pair), consistent with Kwartaal's own two-bucket shape rather than force-fitting Provata's single-bucket name. |
+| `wrangler queues list`        | ✅ works — confirms `kwartaal-reminders` / `kwartaal-exports` (dev, unsuffixed) exist; **no staging/production Kwartaal queues exist yet**. Provata's queues are `provata-scans-production`, `provata-scans-production-dlq`, and the `-staging` pair — Provata uses one queue per env plus an explicit dead-letter queue; Kwartaal's `wrangler.toml` doesn't declare DLQs for `REMINDER_QUEUE`/`EXPORT_QUEUE` in any environment, dev included. Worth a deliberate follow-up decision (not made unilaterally here), not a name-mirroring gap.                                                                                                                                                                                                    |
+| `wrangler pages project list` | ❌ failed at this point — resolved moments later by setting `CLOUDFLARE_ACCOUNT_ID` (see above), not by a permission grant.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+
+### What got provisioned and deployed, in order
+
+1. Four R2 buckets created (`kwartaal-storage-staging`, `kwartaal-backups-
+staging`, `kwartaal-storage-production`, `kwartaal-backups-production`).
+2. Four queues created. **Real finding**: this wrangler version's default
+   `message_retention_period` (345600s / 4 days) exceeds the live API's
+   current max (86400s / 1 day) — `wrangler queues create` fails with
+   "invalid settings" against the default; every queue needed
+   `--message-retention-period-secs 86400` explicitly.
+3. Both Pages projects created (`kwartaal-staging`, `kwartaal-production`).
+4. Staging D1: migrations applied + the Maya demo seed loaded for real
+   (120 rows, 31 tables) — staging is meant to be exercised, not empty.
+5. `kwartaal-api-staging` deployed. **Real finding #1**: the live Cloudflare
+   API rejects cron day-of-week `0` (Sunday) — `"0 3 * * 0"` fails with
+   "invalid cron string" even though it's standard Unix cron syntax and
+   passed every local `--dry-run` throughout Pillar 6 (dry-run never
+   validates cron syntax against the real endpoint). Cloudflare requires
+   `1-7` (`7` = Sunday), not `0-6`. Fixed to `"0 3 * * 7"` everywhere it
+   appeared: all three `wrangler.toml` blocks, `wrangler.test.toml`,
+   `wrangler.e2e.toml`, `backup-and-deletion.test.ts`, and
+   `docs/deploy-runbook.md`. **First pass missed `scheduled.ts`'s own
+   dispatch check** (`if (event.cron === "0 3 * * 0")`) — since the
+   deployed trigger now sent `"0 3 * * 7"`, the string comparison never
+   matched, meaning the weekly backup + hard-delete sweep would **never
+   have fired**, silently, in any real environment. Caught by running the
+   full test gate before considering the work done (two
+   `backup-and-deletion.test.ts` cases failed — "expected 0 to be greater
+   than 0" for the backup zip, org row not deleted for the sweep) — not
+   caught by manual spot-checking. Fixed, both staging and production
+   Workers redeployed afterward since the bug was live in both.
+6. Staging Pages deployed with the `API` service binding wired.
+   **Real finding #2**: `functions/api/[[path]].ts`'s
+   `new Request(url, context.request)` silently drops the `Origin`
+   header — it's a forbidden/restricted header name per the Fetch spec,
+   and workerd enforces that even for this same-process service-binding
+   "fetch." Without it, every CSRF/trustedOrigins-checked request (i.e.
+   every real sign-in) failed with `403 INVALID_ORIGIN` when going through
+   the deployed Pages proxy, despite working perfectly hitting the Worker
+   directly. This would have broken production too, not just staging
+   verification — fixed by explicitly re-reading and re-setting the
+   Origin header from the original request before forwarding.
+7. Real `BETTER_AUTH_SECRET` generated (32 random bytes, base64) and set
+   via `wrangler secret put` for **both** staging and production — neither
+   is committed anywhere; both only exist as Cloudflare secrets.
+8. `APP_ORIGIN` for both environments now trusts both the eventual custom
+   domain (`staging.kwartaal.app` / `kwartaal.app`, not yet attached) and
+   the currently-real `.pages.dev` URL, so auth actually works today, not
+   only after the custom domain attaches. Drop the `.pages.dev` entry from
+   each once its custom domain is live.
+9. **Account-wide cron trigger limit hit**: the account's plan capped cron
+   triggers at 5 total; 4 were already in use (`kwartaal-api-staging`: 2,
+   `provata-api-production`: 1, `provata-api-staging`: 1 — confirmed via
+   direct Cloudflare API calls to `/workers/scripts` and each script's
+   `/schedules` endpoint, not guessed), leaving no room for production's 2. Discussed trade-offs (drop staging's weekly backup cron since
+   staging data is disposable and reproducible from `seed.sql`, vs. the
+   equivalent cut on Provata's side, vs. upgrading the plan) — **user
+   upgraded off the Free tier** rather than sacrifice any cron, so no
+   crons were removed from anywhere.
+10. `kwartaal-api-production` deployed for real: custom domain
+    `api.kwartaal.app` attached and verified (`curl` returns the real
+    `{"ok":true,"service":"kwartaal-api","environment":"production"}`),
+    both cron triggers registered, queue bindings live. **D1 migrations
+    applied to production (schema only, no seed — stays "unseeded" per
+    instruction)** — this one write action to real production
+    infrastructure was explicitly confirmed with the user before running,
+    since Claude Code's own safety layer flagged it.
+11. Production Pages deployed with its service binding. Verified via
+    `GET /api/auth/get-session` through the real `kwartaal-production.
+pages.dev` origin → `null` session, 200 — correct for an intentionally
+    unseeded production database with zero accounts.
+
+### Verified live (real HTTP, not assumed)
+
+- `https://kwartaal-api-staging.<account-subdomain>.workers.dev/health/ready`
+  → `200 {"ready":true,"checks":{"database":true}}`
+- `https://kwartaal-staging.pages.dev` → real sign-in as Maya through the
+  full Pages → Worker (service binding) → D1 chain, then a real
+  `GET /orgs/me` returning her actual seeded business profile.
+- `https://api.kwartaal.app/health` and `/health/ready` → both 200, real
+  custom domain.
+- `https://kwartaal-production.pages.dev` → full chain reachable, correctly
+  returns no session (unseeded, as intended).
+
+### Still BLOCKED-for-operator (dashboard-only, not attempted)
+
+Per explicit instruction not to attempt Pages custom domains from here:
+
+- [ ] Attach `kwartaal.app` to the `kwartaal-production` Pages project.
+- [ ] Attach `staging.kwartaal.app` to the `kwartaal-staging` Pages project.
+
+Once either is attached, drop the corresponding `.pages.dev` entry from
+that environment's `APP_ORIGIN` in `wrangler.toml` (see point 8 above).
+
+### Still open
+
+- `EMAIL_ALLOWLIST` for staging is still `REPLACE_WITH_STAGING_EMAIL_
+ALLOWLIST` (fails safe — blocks all sends — but needs real addresses to
+  actually be useful for testing reminder delivery).
+- Stripe keys/prices, `RESEND_API_KEY` + domain verification, `SENTRY_DSN`,
+  and real (non-placeholder) TaxFigures 2026 figures remain exactly as
+  BLOCKED as documented earlier in this file — none of those credentials
+  were touched this session.
+- Queues declared with no dead-letter queue in any Kwartaal environment
+  (Provata's do have one per env) — a deliberate follow-up decision, not
+  made unilaterally here.
 
 ## Next session
 
-Pillar 6 was the plan's last pillar — what remains is entirely the
-BLOCKED-on-external-credentials items above, not further engineering work
-this environment can do alone. Start with: "Read KWARTAAL-BUILD-PLAN.md,
-CLAUDE.md, and PROGRESS.md" and then, with the user, work through the
-cutover checklist in `docs/deploy-runbook.md` in order — a real Stripe
-test account (walk through one real Checkout → webhook → entitlement-
-unlocks cycle by hand, since that's the one flow this repo has only ever
-simulated) is the single highest-value next external dependency to obtain,
-followed by Resend domain verification and a Sentry DSN. A staging
-environment with real credentials would also let the backup-restore
-rehearsal's still-untested `--remote` path (see "What's done" above) get
-verified for real, and let a Provata scan actually run against a deployed
-marketing site.
+Pillar 6 was the plan's last pillar. Staging and production are now both
+**real, deployed, and verified** (see "Environment" above) — what remains
+is narrower than it was: two dashboard-only domain attachments, and the
+credential-BLOCKED items (Stripe, Resend, Sentry, real TaxFigures) that
+were always going to need the operator's hands regardless of
+infrastructure access. Start with: "Read KWARTAAL-BUILD-PLAN.md,
+CLAUDE.md, and PROGRESS.md" and then, with the user:
+
+1. Attach the two Pages custom domains (`kwartaal.app` →
+   `kwartaal-production`, `staging.kwartaal.app` → `kwartaal-staging`) via
+   the Cloudflare dashboard, then drop each environment's `.pages.dev`
+   entry from its `APP_ORIGIN`.
+2. Set real `EMAIL_ALLOWLIST` addresses for staging so reminder-email
+   testing can actually deliver somewhere.
+3. A real Stripe test account (walk through one real Checkout → webhook →
+   entitlement-unlocks cycle by hand, since that's the one flow this repo
+   has only ever simulated) is the single highest-value next external
+   dependency to obtain, followed by Resend domain verification and a
+   Sentry DSN.
+4. Now that staging is real, the backup-restore rehearsal's still-untested
+   `--remote` path (see Pillar 6's "Backup restore" section above) can
+   finally be rehearsed against it for real, and a Provata scan can
+   actually run against the deployed marketing site — both were BLOCKED
+   purely on "no staging exists," which is no longer true.

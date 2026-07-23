@@ -10,7 +10,7 @@ import { runWeeklyBackup, sweepExpiredDeletions } from "./lib/backup";
  * Two crons share this handler (see wrangler.toml [triggers]), dispatched
  * on event.cron:
  *   - "0 * * * *"  hourly reminder fan-out — the product's heartbeat.
- *   - "0 3 * * 0"  weekly logical D1 backup export to the BACKUPS bucket
+ *   - "0 3 * * 7"  weekly logical D1 backup export to the BACKUPS bucket
  *     (8 weekly retained), bundled with the 30-day hard-cascade-delete
  *     sweep for expired deletion requests (same cron surface, per Pillar
  *     5's own note — both are low-frequency housekeeping).
@@ -31,7 +31,7 @@ export async function handleScheduled(
     return;
   }
 
-  if (event.cron === "0 3 * * 0") {
+  if (event.cron === "0 3 * * 7") {
     // Sequential, not two parallel waitUntils: the backup should capture a
     // pre-sweep snapshot (so a just-expired org's final state is still in
     // that week's backup), and serializing the two avoids both touching D1

@@ -14,5 +14,16 @@ export const onRequest: PagesFunction<Env> = async (context) => {
   if (!url.pathname.startsWith("/api/auth")) {
     url.pathname = url.pathname.replace(/^\/api/, "");
   }
-  return context.env.API.fetch(new Request(url, context.request));
+  // `new Request(url, context.request)` silently drops the Origin header
+  // when copying headers from an existing Request object — Origin is a
+  // forbidden/restricted header name per the Fetch spec, and that
+  // restriction applies even to this same-process service-binding
+  // "fetch". Without it, the Worker's CSRF/trustedOrigins check sees no
+  // Origin at all and rejects every state-changing request. Re-set it
+  // explicitly from the original request, which Workers' Headers API
+  // does allow (unlike real browser JS).
+  const forwarded = new Request(url, context.request);
+  const origin = context.request.headers.get("Origin");
+  if (origin) forwarded.headers.set("Origin", origin);
+  return context.env.API.fetch(forwarded);
 };

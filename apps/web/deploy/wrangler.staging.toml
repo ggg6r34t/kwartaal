@@ -1,0 +1,29 @@
+# Cloudflare Pages project config for kwartaal-staging.
+#
+# Not usable directly via `wrangler pages deploy --config` — this wrangler
+# version rejects that outright ("Pages does not support custom paths for
+# the Wrangler configuration file"), and putting it in its own
+# subdirectory instead breaks Pages Functions auto-detection (which looks
+# for ./functions relative to the CWD wrangler actually runs in — it must
+# be a sibling of wrangler.toml, not a few directories up). So: copy this
+# file to apps/web/wrangler.toml immediately before deploying staging, run
+# the deploy from apps/web itself (where functions/ already lives), then
+# remove it — apps/web/wrangler.toml is gitignored and only ever exists
+# transiently during a real deploy. From apps/web:
+#   cp deploy/wrangler.staging.toml wrangler.toml
+#   npx wrangler pages deploy dist --branch=main
+#   rm wrangler.toml
+#
+# The [[services]] binding wires the Pages Function proxy
+# (functions/api/[[path]].ts's `context.env.API`) to the staging Worker —
+# this is what makes the deployed site's /api/* calls reach
+# kwartaal-api-staging instead of nothing/the wrong environment. Verify
+# it's live after every redeploy — a stale or missing binding fails
+# silently as broken API calls, not a deploy error.
+name = "kwartaal-staging"
+pages_build_output_dir = "dist"
+compatibility_date = "2024-12-18"
+
+[[services]]
+binding = "API"
+service = "kwartaal-api-staging"

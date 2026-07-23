@@ -42,7 +42,7 @@ max_batch_size = 5
 max_retries = 3
 
 [triggers]
-crons = ["0 * * * *", "0 3 * * 0"]
+crons = ["0 * * * *", "0 3 * * 7"]
 
 [vars]
 ENVIRONMENT = "development"

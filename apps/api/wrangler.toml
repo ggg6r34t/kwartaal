@@ -2,6 +2,10 @@ name = "kwartaal-api"
 main = "src/index.ts"
 compatibility_date = "2024-12-18"
 compatibility_flags = ["nodejs_compat"]
+# Pinned to skip wrangler's account auto-discovery (/memberships), which a
+# scoped API token can't complete even when it has real per-resource
+# permissions — see PROGRESS.md's "Environment" section.
+account_id = "147db6fed4f442dd3eb80aae7701ce8a"
 
 # ─── Default environment (local dev) ──────────────────────────────────────
 
@@ -49,7 +53,7 @@ binding = "BROWSER"
 # Hourly reminder fan-out (the product's heartbeat) + weekly logical DB
 # backup export. The scheduled() handler dispatches on event.cron.
 [triggers]
-crons = ["0 * * * *", "0 3 * * 0"]
+crons = ["0 * * * *", "0 3 * * 7"]
 
 [vars]
 ENVIRONMENT = "development"
@@ -81,8 +85,11 @@ name = "kwartaal-api-staging"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-BETTER_AUTH_URL = "https://REPLACE_WITH_STAGING_WORKERS_DEV_HOSTNAME"
-APP_ORIGIN = "https://staging.kwartaal.app"
+BETTER_AUTH_URL = "https://kwartaal-api-staging.ykn-ghyorka.workers.dev"
+# Both trusted: staging.kwartaal.app is the intended custom domain (not yet
+# attached), the .pages.dev URL is the actually-reachable origin until it
+# is — drop the .pages.dev entry once the custom domain is live.
+APP_ORIGIN = "https://staging.kwartaal.app,https://kwartaal-staging.pages.dev"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
 # Staging email safety hard rule (PROGRESS.md's "Environment" section):
 # comma-separated recipient allow-list — anything not on it is logged, not
@@ -127,7 +134,7 @@ max_retries = 3
 binding = "BROWSER"
 
 [env.staging.triggers]
-crons = ["0 * * * *", "0 3 * * 0"]
+crons = ["0 * * * *", "0 3 * * 7"]
 
 # ─── Production ────────────────────────────────────────────────────────────
 # Explicit block per non-negotiable #8 (never let staging double as prod).
@@ -141,11 +148,16 @@ crons = ["0 * * * *", "0 3 * * 0"]
 
 [env.production]
 name = "kwartaal-api-production"
+routes = [{ pattern = "api.kwartaal.app", custom_domain = true }]
 
 [env.production.vars]
 ENVIRONMENT = "production"
 BETTER_AUTH_URL = "https://api.kwartaal.app"
-APP_ORIGIN = "https://kwartaal.app"
+# Both trusted: kwartaal.app is the intended Pages custom domain (not yet
+# attached — dashboard-only, see PROGRESS.md), the .pages.dev URL is the
+# actually-reachable origin until it is — drop the .pages.dev entry once
+# the custom domain is live.
+APP_ORIGIN = "https://kwartaal.app,https://kwartaal-production.pages.dev"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
 STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
@@ -186,4 +198,4 @@ max_retries = 3
 binding = "BROWSER"
 
 [env.production.triggers]
-crons = ["0 * * * *", "0 3 * * 0"]
+crons = ["0 * * * *", "0 3 * * 7"]

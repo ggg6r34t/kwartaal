@@ -18,6 +18,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history, not just the latest commit — a secret committed
+          # and later removed is still a leaked secret; gitleaks needs the
+          # full log to catch that, not just a diff of HEAD.
+          fetch-depth: 0
+
+      - name: Secret scan (gitleaks)
+        uses: gitleaks/gitleaks-action@v2
 
       - uses: actions/setup-node@v4
         with:

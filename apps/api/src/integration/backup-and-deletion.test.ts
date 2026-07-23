@@ -12,7 +12,7 @@ import { authedRequest, signUpAndOnboard } from "./helpers";
 async function runWeeklyCron(scheduledTime?: number): Promise<void> {
   const ctx = createExecutionContext();
   await worker.scheduled(
-    createScheduledController({ cron: "0 3 * * 0", scheduledTime }),
+    createScheduledController({ cron: "0 3 * * 7", scheduledTime }),
     env,
     ctx,
   );
@@ -23,7 +23,7 @@ async function runWeeklyCron(scheduledTime?: number): Promise<void> {
  * Definition of Done: "Backup restore rehearsed once against staging per
  * the runbook" (out of reach here — no staging environment) and, more
  * testably, "account deletion cascades D1 rows and R2 objects by test".
- * These two share a cron tick (scheduled.ts's "0 3 * * 0" branch), so they
+ * These two share a cron tick (scheduled.ts's "0 3 * * 7" branch), so they
  * share this file.
  */
 describe("weekly backup export", () => {

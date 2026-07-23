@@ -19,6 +19,7 @@ uses it for a local-only `STRIPE_WEBHOOK_SECRET`).
 | `BETTER_AUTH_URL` | The API's own origin — Better Auth's `baseURL`. |
 | `APP_ORIGIN` | Comma-separated trusted origin(s) for CORS + CSRF (`src/auth/origins.ts`'s `parseTrustedOrigins`) — the web app's origin(s). |
 | `EMAIL_FROM` | `"Kwartaal <no-reply@...>"` sender for all outbound mail. |
+| `EMAIL_ALLOWLIST` | **Staging only** — comma-separated recipient allow-list. `src/email/resend.ts`'s `isAllowedRecipient` gates every send: in staging, anything not on this list is logged, not sent (same dev-logs treatment as local); an unset/empty list denies everything (fail closed). Never read in production — production has no allow-list by design. See PROGRESS.md's "Environment" section and `src/email/resend.test.ts`. |
 | `STRIPE_PRICE_MONTHLY`, `STRIPE_PRICE_ANNUAL` | Stripe Price IDs — not secret, safe as plain vars. Placeholders (`REPLACE_WITH_...`) until a real Stripe account exists (see PROGRESS.md — BLOCKED). |
 
 ### Secrets (`wrangler secret put`, absent in local dev)

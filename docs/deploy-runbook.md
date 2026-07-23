@@ -5,10 +5,33 @@
 `apps/api/wrangler.toml` defines three explicit blocks — default (local dev),
 `[env.staging]`, `[env.production]` — per the architecture non-negotiable that
 staging must never double as production. Each has its own D1 database, R2
-buckets, queues, and vars. Staging and production resource names are
-currently `REPLACE_WITH_*` placeholders (see wrangler.toml) — provisioning
-them with real Cloudflare resources is part of the cutover below, not done
-yet in this repo.
+buckets, queues, and vars, never shared across environments (see
+PROGRESS.md's "Environment" section for the full topology decision this
+mirrors — the account's existing Provata layout).
+
+- **Pages**: `kwartaal-staging` → `staging.kwartaal.app`; `kwartaal-production`
+  → `kwartaal.app`. No Git connection — deploys are manual via
+  `wrangler pages deploy`, triggered on green, never automatic on push.
+- **Workers**: `kwartaal-api-staging` → its `workers.dev` hostname (no custom
+  domain needed); `kwartaal-api-production` → `api.kwartaal.app`. Either way
+  the browser never calls the API domain directly — only the Pages project's
+  same-origin proxy Function does (`apps/web/functions/api/[[path]].ts`),
+  via an `API` Fetcher **service binding** configured per-Pages-project (this
+  is Pages-side config, not something `wrangler.toml` declares — set it at
+  deploy time or in the dashboard, matching `kwartaal-staging` Pages to
+  `kwartaal-api-staging` Worker and `kwartaal-production` to
+  `kwartaal-api-production`). Getting this cross-wired (staging Pages →
+  production Worker, or vice versa) would be a real, easy-to-make mistake —
+  double check it after every Pages project (re)creation.
+- **Resource naming**: R2 buckets and queues follow the `-staging`/
+  `-production` suffix convention in `wrangler.toml` (D1 already did, since
+  Pillar 1). **The buckets and queues themselves are not provisioned yet** —
+  the wrangler token available when this was last worked on could
+  authenticate (`wrangler whoami` succeeded) but had no account-level API
+  permissions (every `d1 list`/`r2 bucket list`/`queues list`/
+  `pages project list` call failed with a `/memberships` auth error, code
+  10000) — provisioning needs either a broader-scoped token or dashboard
+  access.
 
 The web app (`apps/web`) builds to a static SPA + SSR shell
 (`npm run build -w @kwartaal/web`) deployed as a Cloudflare Pages project;
@@ -44,14 +67,31 @@ this environment does not have — **BLOCKED**, not attempted. Listed here so
 the checklist exists and each item has a concrete, checkable definition of
 done rather than being deferred vaguely.
 
-- [ ] Custom domain attached to the production Pages project + API Worker
-      route (replace `REPLACE_WITH_PRODUCTION_ORIGIN` in wrangler.toml).
+- [ ] `kwartaal.app` custom domain attached to the `kwartaal-production`
+      Pages project; `kwartaal-api-production` Worker gets `api.kwartaal.app`
+      (both already the target values in `wrangler.toml` — this item is the
+      actual DNS/dashboard attachment, not a config edit).
+- [ ] `staging.kwartaal.app` attached to `kwartaal-staging` Pages, same idea.
+- [ ] Pages↔Worker `API` service bindings wired per environment (see
+      "Environments" above) — verify by hitting `/api/auth/get-session`
+      through each Pages origin and confirming it reaches the matching-env
+      Worker, not the other one.
+- [ ] R2 buckets (`kwartaal-storage-staging`, `kwartaal-backups-staging`,
+      and the `-production` pair) and queues (`kwartaal-reminders-*`,
+      `kwartaal-exports-*`) actually created — named correctly in
+      `wrangler.toml` already, not yet provisioned (see "Environments" above
+      for why: a token-permission blocker, not a config gap).
+- [ ] `EMAIL_ALLOWLIST` set to real addresses for `[env.staging]` (currently
+      `REPLACE_WITH_STAGING_EMAIL_ALLOWLIST`) — staging must never send to
+      an arbitrary recipient; see PROGRESS.md's "Environment" section and
+      `email/resend.test.ts` for the enforced rule.
 - [ ] Live Stripe keys (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET` via
       `wrangler secret put --env production`) and real
       `STRIPE_PRICE_MONTHLY`/`STRIPE_PRICE_ANNUAL` price IDs — see PROGRESS.md,
       no Stripe account exists yet.
 - [ ] Resend domain verified (SPF + DKIM DNS records published and passing)
-      for `EMAIL_FROM`'s domain, and `RESEND_API_KEY` set as a secret.
+      for `EMAIL_FROM`'s domain, and `RESEND_API_KEY` set as a secret (both
+      staging and production).
 - [ ] `SENTRY_DSN` secret set; confirm receipt by throwing a real test error
       in production and checking it lands in Sentry.
 - [ ] TaxFigures 2026 row seeded into the production D1 (`packages/db/seed.sql`
@@ -59,8 +99,6 @@ done rather than being deferred vaguely.
       `docs/tax-figures.md`).
 - [ ] Uptime monitor pointed at `GET /health/ready` (200 = DB reachable,
       503 = not — see `apps/api/src/routes/health.ts`).
-- [ ] Real R2 buckets and queues provisioned under the production names in
-      wrangler.toml (currently `REPLACE_WITH_PRODUCTION_*` placeholders).
 - [ ] Cron verified firing in production (see `wrangler tail` step above).
 
 ## Backup & restore

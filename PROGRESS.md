@@ -1235,6 +1235,64 @@ checklist as concrete unchecked items, not vague prose).
    same as any other local dev usage, and easily cleared with
    `npm run db:local:reset`).
 
+## Environment
+
+Topology decision (user-supplied, mirroring the account's existing Provata
+layout — Kwartaal's sibling product) — applies to `wrangler.toml` from this
+point forward, not just as a description.
+
+- **Pages**: `kwartaal-staging` → `staging.kwartaal.app`;
+  `kwartaal-production` → `kwartaal.app`. No Git connection — deploys are
+  manual, via `wrangler pages deploy`, triggered on green (gate passing),
+  not automatically on push.
+- **Workers**: `kwartaal-api-staging` → its `workers.dev` hostname (no
+  custom domain); `kwartaal-api-production` → `api.kwartaal.app`. Either
+  way, the API domain is the same-origin proxy's upstream only — the
+  browser never calls it directly (see `apps/web/functions/api/[[path]].ts`
+  / `vite.config.ts`'s dev proxy, both of which strip `/api` and forward
+  same-origin specifically so the session cookie stays first-party). The
+  Pages Function's `API` service binding (which Worker it proxies to) is
+  account-side Pages project configuration, not something a committed
+  `wrangler.toml` can declare — it must be set per-project at deploy time
+  (`wrangler pages deploy ... --service API=kwartaal-api-staging`, or the
+  dashboard equivalent), matching Pages project to Worker per environment.
+- **Per-env resources**: separate D1, R2 buckets, and Queues for staging
+  and production, `-staging`/`-production` suffix convention, declared in
+  `wrangler.toml`'s `[env.staging]`/`[env.production]` blocks. Never shared
+  across environments. `wrangler.toml` now uses this naming convention for
+  R2/Queues (previously `REPLACE_WITH_*` placeholders) — D1 was already
+  real and named this way since Pillar 1. **R2 buckets and Queues
+  themselves are still not provisioned** — see below.
+- **HARD RULE — staging email safety**: staging runs the full cron/queue
+  reminder pipeline against real org data but must never deliver email to
+  an arbitrary address. `EMAIL_ALLOWLIST` (comma-separated, plain var, not
+  secret) gates every send in `email/resend.ts`'s `isAllowedRecipient`: in
+  staging, a recipient not on the list is logged, not sent — the same
+  dev-logs treatment local dev already gets. Production reads no
+  allow-list at all — the gate function returns `true` immediately for any
+  non-staging environment. An **unset or empty** `EMAIL_ALLOWLIST` in
+  staging denies every recipient (fail closed), not "allow everything" —
+  tested explicitly (`email/resend.test.ts`'s fourth case), since the
+  opposite default would silently reopen the exact hole this rule exists
+  to close. `resend.test.ts` (4 tests, all passing) is the required proof:
+  a non-allowlisted staging recipient never reaches `fetch`; an
+  allowlisted one does (case/whitespace-insensitive match); an empty
+  allow-list blocks everything; production sends regardless of what
+  `EMAIL_ALLOWLIST` contains.
+
+**Blocked on account access, not further engineering**: the wrangler token
+available in this environment authenticates (`wrangler whoami` succeeds,
+identifies a real account) but has no account-level API permissions —
+every resource-listing or -creation call (`d1 list`, `d1 info`,
+`r2 bucket list`, `queues list`, `pages project list`) fails with a
+`/memberships` authentication error (code 10000). This means Provata's
+actual existing layout could not be inspected directly to confirm the
+mirror is exact (the topology above was taken as given from the user's
+instruction, not independently verified against the account), and the
+real R2 buckets, Queues, and Pages projects named above do not exist yet —
+`wrangler.toml` now names them correctly, but creating them for real needs
+either a token with broader permissions or dashboard access.
+
 ## Next session
 
 Pillar 6 was the plan's last pillar — what remains is entirely the

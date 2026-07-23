@@ -63,18 +63,31 @@ STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 
 # ─── Staging ───────────────────────────────────────────────────────────────
-# R2 bucket / queue names below are provisioning placeholders — create the
-# real staging-suffixed resources before Pillar 3 (queues) / Pillar 4 (R2)
-# exercise staging, then replace these names. D1 is already live.
+# Mirrors the account's Provata layout (see docs/deploy-runbook.md /
+# PROGRESS.md's "Environment" section): kwartaal-api-staging is a Worker
+# with no custom domain — it's the same-origin proxy's upstream only, the
+# browser never calls it directly, so its workers.dev hostname is fine as
+# BETTER_AUTH_URL. The Pages project (kwartaal-staging, no Git connection,
+# manual-wrangler-deploy) fronts staging.kwartaal.app. Resource names below
+# follow the -staging suffix convention; R2 buckets and Queues still need
+# real provisioning (the wrangler token available in this environment lacks
+# account-level permissions to list or create them — see PROGRESS.md).
+# BETTER_AUTH_URL's exact workers.dev hostname is only known after the
+# first real `wrangler deploy --env staging` (it includes the account's
+# subdomain, e.g. kwartaal-api-staging.<subdomain>.workers.dev).
 
 [env.staging]
 name = "kwartaal-api-staging"
 
 [env.staging.vars]
 ENVIRONMENT = "staging"
-BETTER_AUTH_URL = "https://REPLACE_WITH_STAGING_ORIGIN"
-APP_ORIGIN = "https://REPLACE_WITH_STAGING_ORIGIN,https://REPLACE_WITH_STAGING_ORIGIN.pages.dev"
+BETTER_AUTH_URL = "https://REPLACE_WITH_STAGING_WORKERS_DEV_HOSTNAME"
+APP_ORIGIN = "https://staging.kwartaal.app"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+# Staging email safety hard rule (PROGRESS.md's "Environment" section):
+# comma-separated recipient allow-list — anything not on it is logged, not
+# sent (see email/resend.ts's isAllowedRecipient). Unset = allow nothing.
+EMAIL_ALLOWLIST = "REPLACE_WITH_STAGING_EMAIL_ALLOWLIST"
 STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 
@@ -86,27 +99,27 @@ migrations_dir = "../../packages/db/migrations"
 
 [[env.staging.r2_buckets]]
 binding = "RECEIPTS"
-bucket_name = "REPLACE_WITH_STAGING_R2_BUCKET"
+bucket_name = "kwartaal-storage-staging"
 
 [[env.staging.r2_buckets]]
 binding = "BACKUPS"
-bucket_name = "REPLACE_WITH_STAGING_BACKUPS_BUCKET"
+bucket_name = "kwartaal-backups-staging"
 
 [[env.staging.queues.producers]]
-queue = "REPLACE_WITH_STAGING_REMINDER_QUEUE"
+queue = "kwartaal-reminders-staging"
 binding = "REMINDER_QUEUE"
 
 [[env.staging.queues.consumers]]
-queue = "REPLACE_WITH_STAGING_REMINDER_QUEUE"
+queue = "kwartaal-reminders-staging"
 max_batch_size = 10
 max_retries = 3
 
 [[env.staging.queues.producers]]
-queue = "REPLACE_WITH_STAGING_EXPORT_QUEUE"
+queue = "kwartaal-exports-staging"
 binding = "EXPORT_QUEUE"
 
 [[env.staging.queues.consumers]]
-queue = "REPLACE_WITH_STAGING_EXPORT_QUEUE"
+queue = "kwartaal-exports-staging"
 max_batch_size = 5
 max_retries = 3
 
@@ -118,16 +131,21 @@ crons = ["0 * * * *", "0 3 * * 0"]
 
 # ─── Production ────────────────────────────────────────────────────────────
 # Explicit block per non-negotiable #8 (never let staging double as prod).
-# D1 is real; R2/queue names are placeholders to provision at the Pillar 6
-# staging→production cutover, alongside the custom domain and live secrets.
+# api.kwartaal.app is the same-origin proxy's upstream only, per the same
+# topology — the Pages project (kwartaal-production, no Git connection,
+# manual-wrangler-deploy) fronts kwartaal.app and is what the browser
+# actually talks to. No EMAIL_ALLOWLIST here — production has no allow-list
+# by design (see email/resend.ts). R2/queue names follow the -production
+# suffix convention; actual provisioning is still needed (see staging's
+# comment above — same token-permission blocker).
 
 [env.production]
 name = "kwartaal-api-production"
 
 [env.production.vars]
 ENVIRONMENT = "production"
-BETTER_AUTH_URL = "https://REPLACE_WITH_PRODUCTION_ORIGIN"
-APP_ORIGIN = "https://REPLACE_WITH_PRODUCTION_ORIGIN"
+BETTER_AUTH_URL = "https://api.kwartaal.app"
+APP_ORIGIN = "https://kwartaal.app"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
 STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
@@ -140,27 +158,27 @@ migrations_dir = "../../packages/db/migrations"
 
 [[env.production.r2_buckets]]
 binding = "RECEIPTS"
-bucket_name = "REPLACE_WITH_PRODUCTION_R2_BUCKET"
+bucket_name = "kwartaal-storage-production"
 
 [[env.production.r2_buckets]]
 binding = "BACKUPS"
-bucket_name = "REPLACE_WITH_PRODUCTION_BACKUPS_BUCKET"
+bucket_name = "kwartaal-backups-production"
 
 [[env.production.queues.producers]]
-queue = "REPLACE_WITH_PRODUCTION_REMINDER_QUEUE"
+queue = "kwartaal-reminders-production"
 binding = "REMINDER_QUEUE"
 
 [[env.production.queues.consumers]]
-queue = "REPLACE_WITH_PRODUCTION_REMINDER_QUEUE"
+queue = "kwartaal-reminders-production"
 max_batch_size = 10
 max_retries = 3
 
 [[env.production.queues.producers]]
-queue = "REPLACE_WITH_PRODUCTION_EXPORT_QUEUE"
+queue = "kwartaal-exports-production"
 binding = "EXPORT_QUEUE"
 
 [[env.production.queues.consumers]]
-queue = "REPLACE_WITH_PRODUCTION_EXPORT_QUEUE"
+queue = "kwartaal-exports-production"
 max_batch_size = 5
 max_retries = 3
 

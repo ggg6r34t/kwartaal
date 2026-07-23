@@ -14,7 +14,7 @@ export function AuthShell({
   footer?: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen flex-col items-center bg-wash px-6 py-16">
+    <div className="flex min-h-screen flex-col items-center justify-center bg-wash px-6 py-16">
       <Link to="/" className="mb-5 flex items-center gap-2 text-ink no-underline">
         <span
           aria-hidden="true"

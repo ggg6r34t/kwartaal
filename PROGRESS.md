@@ -1495,15 +1495,53 @@ pages.dev` origin → `null` session, 200 — correct for an intentionally
 - `https://kwartaal-production.pages.dev` → full chain reachable, correctly
   returns no session (unseeded, as intended).
 
-### Still BLOCKED-for-operator (dashboard-only, not attempted)
+### Pages custom domains — attached via API, DNS half BLOCKED (real finding)
 
-Per explicit instruction not to attempt Pages custom domains from here:
+Correction to the earlier "dashboard-only" assumption above: Pages custom-
+domain **attachment** is not wrangler-supported but **is** a real REST
+endpoint (`POST /accounts/:id/pages/projects/:project/domains`), and it
+worked cleanly with the existing token:
 
-- [ ] Attach `kwartaal.app` to the `kwartaal-production` Pages project.
-- [ ] Attach `staging.kwartaal.app` to the `kwartaal-staging` Pages project.
+- [x] `kwartaal.app` attached to `kwartaal-production`
+      (domain id `82f8343d-e5b1-4cf4-acb4-ce59d78dbc7a`).
+- [x] `staging.kwartaal.app` attached to `kwartaal-staging`
+      (domain id `ad83f5af-f663-4557-b866-36501950f156`).
 
-Once either is attached, drop the corresponding `.pages.dev` entry from
-that environment's `APP_ORIGIN` in `wrangler.toml` (see point 8 above).
+Both came back `zone_tag: a47130f4c2dc9c245002c71ba5734c5d` — confirmed via
+a separate `GET /zones?name=kwartaal.app` (not assumed from the attach
+response) to be the real `kwartaal.app` zone, `status: active`, correctly
+delegated to Cloudflare's nameservers.
+
+**BLOCKED — real permission gap, stopped per instruction, not worked
+around:** the Pages API does not auto-create DNS (only the dashboard flow
+does). Both domains sit in `status: initializing`/`pending` with
+`verification_data.error_message: "CNAME record not set"` — they cannot go
+active without the CNAME. `GET /zones/:zone_id/dns_records` on the
+`kwartaal.app` zone returns `{"success":false,"errors":[{"code":10000,
+"message":"Authentication error"}]}` with the current token. The zone's own
+`permissions` field (returned on the same `GET /zones` call above) lists
+`#zone:read, #zone_settings:read, #worker:edit, #worker:read` — no DNS
+permission at all, consistent with the error.
+
+**Exact scope needed:** in the Cloudflare dashboard, edit the existing API
+token (My Profile → API Tokens) and add the permission group **Zone → DNS →
+Edit**, scoped to the `kwartaal.app` zone (or "All zones" if simpler) —
+takes effect immediately, no new token/rotation needed. Once granted, the
+remaining steps are mechanical and unblock in one pass:
+
+1. `POST /zones/a47130f4c2dc9c245002c71ba5734c5d/dns_records` — proxied
+   CNAME `kwartaal.app` → `kwartaal-production.pages.dev`, and
+   `staging.kwartaal.app` → `kwartaal-staging.pages.dev` (check first via
+   `GET .../dns_records?name=...` and replace any existing record rather
+   than duplicate).
+2. Poll `GET .../pages/projects/:project/domains/:domain` until
+   `status: active` with the cert issued (up to ~15 min).
+3. Verify both hostnames resolve with valid certs, `/health` responds
+   through the same-origin proxy on the real hostname, and one full auth
+   round-trip works on `staging.kwartaal.app`.
+4. Drop each environment's `.pages.dev` entry from `APP_ORIGIN` in
+   `wrangler.toml` (see point 8 above), point the staging Playwright base
+   URL at `staging.kwartaal.app`, and check this section off for real.
 
 ### Still open
 

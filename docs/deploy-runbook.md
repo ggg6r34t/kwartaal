@@ -16,10 +16,24 @@ what was verified with real HTTP requests).
 
 - **Pages**: `kwartaal-staging` and `kwartaal-production` are both real,
   deployed projects. `staging.kwartaal.app` / `kwartaal.app` custom domains
-  are **not yet attached** (dashboard-only, see the checklist below) — both
-  are reachable today at their `.pages.dev` URLs. No Git connection on
-  either — deploys are manual via `wrangler pages deploy`, triggered on
-  green, never automatic on push.
+  are **attached but not yet live** — see the checklist below; both are
+  reachable today at their `.pages.dev` URLs. No Git connection on either —
+  deploys are manual via `wrangler pages deploy`, triggered on green, never
+  automatic on push.
+- **Pages custom domains are API-reachable, not wrangler-supported —
+  don't assume dashboard-only.** `wrangler pages` has no domain-attach
+  subcommand, which reads like "dashboard only," but the REST endpoint
+  works fine with the existing token: `POST /accounts/:id/pages/projects/
+:project/domains` with `{"name": "<hostname>"}`. What the API does
+  *not* do is create the DNS record for you (the dashboard UI flow does,
+  silently) — the domain sits in `status: initializing` with
+  `verification_data.error_message: "CNAME record not set"` until a
+  proxied CNAME exists pointing at the project's `.pages.dev` hostname.
+  Look the zone ID up via `GET /zones?name=<zone>` — don't reuse a
+  half-remembered value — then `POST /zones/:zone_id/dns_records`. See
+  PROGRESS.md's "Pages custom domains" section for the exact calls, current
+  status, and the specific token permission (`Zone → DNS → Edit`) this
+  account's token needed but didn't have.
 - **Workers**: `kwartaal-api-staging` (its `workers.dev` hostname) and
   `kwartaal-api-production` (`api.kwartaal.app`, a real attached Worker
   custom domain, verified with a live `curl`) are both deployed. Either way
@@ -85,18 +99,25 @@ requires to be visible in `wrangler tail`.
 
 ## Staging → production cutover checklist
 
-Most of the infrastructure is done — what's left either needs the
-dashboard specifically (domain attachment is not a wrangler CLI operation
-for Pages custom domains) or real external credentials this environment
-still doesn't have.
+Most of the infrastructure is done — what's left either needs one
+dashboard-granted token permission (see below — everything else about
+domain attachment is API-reachable, not dashboard-only) or real external
+credentials this environment still doesn't have.
 
-**Dashboard-only, not attempted from here:**
+**BLOCKED on a token permission, not a dashboard-only operation:**
 
-- [ ] Attach `kwartaal.app` to the `kwartaal-production` Pages project.
-- [ ] Attach `staging.kwartaal.app` to the `kwartaal-staging` Pages project.
-      After either, drop that environment's `.pages.dev` entry from its
-      `APP_ORIGIN` in `wrangler.toml` (it's there now only because the
-      custom domain isn't live yet).
+- [x] `kwartaal.app` attached to `kwartaal-production` via the Pages API.
+- [x] `staging.kwartaal.app` attached to `kwartaal-staging` via the Pages API.
+- [ ] Both need a proxied CNAME to their `.pages.dev` origin before they'll
+      go `active` — blocked on the token missing `Zone → DNS → Edit` on the
+      `kwartaal.app` zone (`GET dns_records` returns `Authentication
+      error`). Exact remaining steps and the zone ID are in PROGRESS.md's
+      "Pages custom domains" section — mechanical once the scope is
+      granted, no further investigation needed.
+      After either goes live, drop that environment's `.pages.dev` entry
+      from its `APP_ORIGIN` in `wrangler.toml` (it's there now only because
+      the custom domain isn't live yet), and point the staging Playwright
+      base URL at `staging.kwartaal.app`.
 
 **Done and verified with real HTTP requests (see PROGRESS.md's
 "Environment" section for the full narrative):**

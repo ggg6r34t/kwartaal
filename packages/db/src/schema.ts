@@ -13,9 +13,10 @@ import { authUser } from "./auth-schema";
  * STACK-BLUEPRINT §6 and KWARTAAL-BUILD-PLAN "Architecture non-negotiables"):
  *
  *   - INSTANTS (createdAt, updatedAt, filedAt, paidAt, sentAt, capturedAt,
- *     dismissedAt, firstQuarterClosedAt, currentPeriodEnd, readAt): integer
- *     epoch via { mode: "timestamp" }, aligned with Better Auth's own
- *     convention. `updatedAt` is maintained on every app table via Drizzle
+ *     dismissedAt, firstQuarterClosedAt, currentPeriodEnd, readAt,
+ *     deletionRequestedAt, expiresAt, receivedAt): integer epoch via
+ *     { mode: "timestamp" }, aligned with Better Auth's own convention.
+ *     `updatedAt` is maintained on every app table via Drizzle
  *     `$onUpdate` (fixes blueprint §11.6 — never left to a default-only
  *     column).
  *   - CALENDAR DATES that are days, not instants (deadline due date,
@@ -54,6 +55,12 @@ function timestamps() {
 export const orgs = sqliteTable("orgs", {
   id: text("id").primaryKey(),
   name: text("name").notNull(),
+  // Set by POST /orgs/deletion-request (owner-only), cleared by cancel. The
+  // 30-day-later hard cascade delete is a weekly-cron sweep — same cron
+  // surface as the Pillar 6 backup dump, implemented there (see
+  // PROGRESS.md). A "data" ExportJob is enqueued the moment this is set, so
+  // the required grace-period export happens immediately, not at day 30.
+  deletionRequestedAt: instant("deletion_requested_at"),
   ...timestamps(),
 });
 
@@ -78,6 +85,40 @@ export const users = sqliteTable(
   (t) => [
     index("users_org_idx").on(t.orgId),
     uniqueIndex("users_auth_user_idx").on(t.authUserId),
+  ],
+);
+
+/**
+ * Pending bookkeeper seats. A separate table rather than a `users` row with
+ * status "invited", because `users.auth_user_id` is NOT NULL — there is no
+ * real Better Auth user yet to point at. `auth/index.ts`'s
+ * `user.create.after` hook consumes a matching, unexpired invite on the
+ * invitee's first sign-in (creating their `users` row directly against the
+ * inviting org instead of auto-provisioning a new one) and deletes the row;
+ * expired/superseded invites are simply never consumed.
+ */
+export const invites = sqliteTable(
+  "invites",
+  {
+    id: text("id").primaryKey(),
+    orgId: text("org_id")
+      .notNull()
+      .references(() => orgs.id, { onDelete: "cascade" }),
+    email: text("email").notNull(),
+    // role: "bookkeeper" — the only invitable role in v1 (owners are never invited, they provision on signup)
+    role: text("role").notNull().default("bookkeeper"),
+    token: text("token").notNull(),
+    invitedBy: text("invited_by")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    expiresAt: instant("expires_at").notNull(),
+    ...timestamps(),
+  },
+  (t) => [
+    index("invites_org_idx").on(t.orgId),
+    uniqueIndex("invites_token_idx").on(t.token),
+    // One pending invite per (org, email) — re-inviting replaces, never duplicates.
+    uniqueIndex("invites_org_email_idx").on(t.orgId, t.email),
   ],
 );
 
@@ -433,6 +474,20 @@ export const subscriptions = sqliteTable(
   (t) => [uniqueIndex("subscriptions_org_idx").on(t.orgId)],
 );
 
+/**
+ * Stripe webhook idempotency ledger — global, org-invisible (a webhook
+ * event arrives with no session/org context, only whatever's in its
+ * payload). Insert-before-process with onConflictDoNothing, same pattern
+ * as reminder_logs: a conflict means "already handled," skip.
+ */
+export const webhookEvents = sqliteTable("webhook_events", {
+  // The provider's own event id (e.g. Stripe's evt_...) — globally unique by construction.
+  id: text("id").primaryKey(),
+  receivedAt: instant("received_at")
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
 // ─── Exports, audit, secrets, notifications ─────────────────────────────
 
 export const exportJobs = sqliteTable(
@@ -561,6 +616,7 @@ export const glossaryTerms = sqliteTable("glossary_terms", {
 export const schema = {
   orgs,
   users,
+  invites,
   businessProfiles,
   taxYearProfiles,
   quarters,
@@ -576,6 +632,7 @@ export const schema = {
   deadlines,
   reminderLogs,
   subscriptions,
+  webhookEvents,
   exportJobs,
   auditLogs,
   secrets,

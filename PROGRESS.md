@@ -598,6 +598,277 @@ already covered everything needed):
    this pillar adds (both flagged in the preflight's "starter kit" list as
    expected Pillar 4 additions), no others.
 
+## Pillar 5: Billing + marketing site — complete
+
+Stripe Checkout + Customer Portal + a signature-verified, idempotent
+webhook; the entitlement gate wired across every mutation route; the
+bookkeeper-invite flow (a real design constraint solved, not stubbed);
+account deletion request/cancel; the full public marketing site
+(Home/Pricing/How it works/Guide/About/Companion + four legal pages) with
+real SSG prerender, sitemap, robots.txt, and generated OG images. **No
+Stripe account exists** (BLOCKED, flagged since Pillar 1's external
+resources list) — every billing code path is built and live-tested against
+its documented degraded behavior, but live Checkout/Portal/webhook-from-
+real-Stripe have never run against a real account. Full gate green
+including a live smoke test that exercises the entire trial → gate →
+subscribe → gate-reopens lifecycle with a cryptographically real (test-key)
+webhook signature.
+
+### What's done
+
+**Schema additions** (migration `0003_loose_invaders.sql`): `invites`
+(pending bookkeeper seats — see the invite-flow note below for why this
+couldn't just be a `users` row with `status: "invited"`), `webhook_events`
+(global, Stripe-event-id-keyed idempotency ledger, same insert-before-
+process pattern as `reminder_logs`), and `orgs.deletionRequestedAt`.
+
+**Entitlement** (`packages/core/src/entitlement.ts`'s `hasProAccess` already
+existed from Pillar 1 — this pillar is where it actually gets called):
+
+- `apps/api/src/lib/entitlement.ts`'s `computeEntitlement(tenantDb)` is the
+  one place `hasProAccess` gets real inputs from (`businessProfiles` +
+  `subscriptions`), used by `GET /orgs/me`, onboarding's response,
+  `GET /billing/status`, and the gate itself — so the gate, the Settings
+  screen, and the nav badge can never disagree about whether an org is
+  entitled.
+- `apps/api/src/middleware/entitlement.ts`'s `requireProForMutations` is a
+  no-op on every `GET` (Free tier keeps read access to everything, per
+  locked decision #5's "the gate blocks new work, not access to your own
+  records") and 402s every other method when `hasProAccess` is false.
+  Mounted once per gated router group in `index.ts` — `quarters`,
+  `hours-entries`, `km-entries`, `money`, `receipts`, `export-jobs`, and
+  `invites` (the bookkeeper seat itself is the Pro feature being gated, not
+  the org's own calendar/glossary/deadlines/income-tax reads, which stay
+  ungated).
+- Live-verified the exact trial mechanics: with `firstQuarterClosedAt`
+  null, mutations pass; forcing it non-null (simulating a closed first
+  quarter) flips `GET /billing/status` to `hasProAccess: false` and the
+  very next `POST /hours-entries` returns 402 — while the same org's `GET
+/quarters` keeps returning 200 throughout, proving reads never gate.
+
+**Billing** (`apps/api/src/lib/stripe.ts`, `routes/billing.ts`,
+`routes/billing-webhook.ts`, `lib/stripe-webhook.ts`):
+
+- `getStripeClient` throws a typed `BillingNotConfiguredError` when
+  `STRIPE_SECRET_KEY` is absent — no dev-fallback exists for a payments
+  secret (unlike `BETTER_AUTH_SECRET`'s insecure-but-functional local
+  default), so every billing route degrades to a clear 503
+  `billing-not-configured` rather than crashing or faking a client.
+  Live-verified: both `POST /billing/checkout-session` and
+  `POST /billing/portal-session` return exactly that with no key configured
+  (the actual state of this environment).
+- `POST /billing/checkout-session` — creates/reuses a Stripe Customer,
+  starts a subscription-mode Checkout Session for the requested interval,
+  carries `orgId` through as `client_reference_id` **and**
+  `subscription_data.metadata.orgId` (the second one is what the webhook
+  actually reads, since a `customer.subscription.*` event's own object is
+  what carries the org link, not the checkout session).
+- `POST /billing/portal-session` — 404s `no-subscription` if the org has
+  never had a Stripe customer (correct: Portal manages an existing
+  relationship, Checkout starts one).
+- `POST /webhooks/stripe` — mounted with **no** `csrfGuard`/`requireSession`
+  (a webhook has no session and Stripe never sends a matching Origin;
+  see `index.ts`'s comment on why this is deliberate, not an oversight).
+  Verifies via `Stripe.webhooks.constructEventAsync` +
+  `Stripe.createSubtleCryptoProvider()` — the edge-runtime-safe pair, not
+  the Node-crypto-dependent sync `constructEvent`, since Workers has no
+  Node crypto. The DB-touching half lives in `lib/stripe-webhook.ts`, not
+  the route file, because the route lives under `apps/api/src/routes/**`
+  and the no-raw-database ESLint rule bans importing `createDb` there —
+  same reason `queue.ts`'s reminder/export handlers live outside `routes/`.
+  Idempotent via `webhook_events` insert-before-process
+  (`onConflictDoNothing`); a replayed event is a no-op, verified live (see
+  gate table).
+- Handles `customer.subscription.created|updated|deleted` — these three
+  alone are the source of truth for plan/status/currentPeriodEnd (Stripe
+  fires one on every state change including the first), so
+  `checkout.session.completed` isn't needed at all and isn't handled.
+
+**Bookkeeper invite** (`routes/invites.ts`, `routes/invite-preview.ts`,
+`lib/consume-invite.ts`, `auth/index.ts`'s hook, `routes/AcceptInvite.tsx`):
+the real design problem here — Better Auth's `user.create.after` hook
+**always** auto-provisions a brand-new org for any new authUser (that's how
+open self-serve signup works), so a naive invite link would just create the
+bookkeeper their own separate org instead of attaching them to the
+inviter's. Fixed by checking a pending `invites` row (matched by email,
+global scan — email isn't independently indexed and this table is small by
+nature) **before** falling back to `provisionOrgForNewUser`, so invite
+consumption and normal signup are mutually exclusive outcomes of the exact
+same hook, not two different code paths that could drift. `users.auth_
+user_id` being globally unique (from Pillar 1) means one person can only
+ever belong to one org, ever — so an email that already has an account
+can't be invited into a second one; `POST /invites` checks for this and
+409s `email-already-has-account` rather than silently creating an invite
+that could never be consumed. Live-verified end to end: invited email
+signs up fresh → lands in the **inviter's** org with `role: "bookkeeper"`
+(not their own new org) → the invite row is gone from the owner's list →
+the bookkeeper's own mutation attempt 403s (`requireRole("owner")` was
+already correctly applied to every mutation route in Pillars 3-4, so
+"mutation-blocked server-side" needed no new enforcement, just this
+end-to-end proof) → the bookkeeper's read still 200s.
+
+**Account deletion** (`POST /orgs/deletion-request`,
+`POST /orgs/deletion-cancel`): sets `deletionRequestedAt` and immediately
+enqueues a `kind: "data"` `ExportJob` (reusing Pillar 4's export machinery
+verbatim), so the plan's "30-day grace **export**" exists from day one of
+the grace period, not generated at the last minute. **The actual 30-days-
+later hard cascade delete is deferred** — it's a weekly-cron sweep, the
+same cron surface as the Pillar-6-deferred backup dump (`scheduled.ts`
+already has a stub for `"0 3 * * 0"`), so bundling both into that one
+future cron implementation is more coherent than building a second,
+unrelated weekly sweep now. Flagged explicitly below, not silently left
+unfinished.
+
+**Web — paywall + Settings**:
+
+- `lib/api.ts`'s `onEntitlementRequired` hook fires `PaywallInterstitial`
+  on any 402, the same reactive pattern the existing (if never-wired)
+  `onUnauthenticated` hook established — matches the design's own "no
+  urgency mechanics, fires when a gated action is attempted" rule better
+  than a preemptively-disabled button would.
+  `PaywallInterstitial.tsx` is ported from `Kwartaal App Additions.dc.html`'s
+  paywall interstitial, with copy adapted to be state-generic ("Your free
+  quarter is complete" rather than hard-coding "Q3") since this can fire on
+  any gated mutation after the trial closes, not only the exact
+  drawer-close moment.
+- `Settings.tsx` is fully real: profile/KOR/role summary, a reminder-
+  cadence editor (reuses `POST /onboarding/complete`'s idempotent-after-
+  first-run update path rather than adding a parallel endpoint), plan/
+  billing (checkout with an interval toggle, or "Manage billing" once
+  subscribed), the bookkeeper invite form + pending-invite list + revoke,
+  the account-wide data export (extracted into a shared
+  `DataExportButton.tsx`, now used by both Vault and Settings), and account
+  deletion request/cancel with the 30-day framing stated plainly.
+- `AppShell.tsx` gained a Trial/Free/Pro badge next to the org name —
+  deliberately distinct from a raw `hasProAccess` boolean, since showing
+  "Pro" during the free trial would misstate what happens at the gate.
+
+**Marketing site** (`apps/web/src/marketing/`): Home, Pricing (live
+interval toggle + FAQ accordion), How it works (Maya's full six-step
+walkthrough), Guide (the expat tax guide's first real article), About,
+Companion (the "works alongside your bookkeeping tool" positioning page,
+verbatim to the plan's required framing — never a feature-matrix
+comparison), and four legal pages (Privacy/Terms/DPA/Impressum) sharing one
+`LegalPage.tsx` template per docs/design's own "shared by all four" note,
+written with real content describing what the product actually does
+(data minimization, EU processors, export/deletion self-service) rather
+than lorem-ipsum placeholders. A product-voice 404 page
+(`marketing/NotFound.tsx`) replaces the old catch-all
+redirect-to-`/`. `MarketingLayout.tsx` is the one shared nav+footer,
+matching `Kwartaal Site Patterns.dc.html`'s "nav and footer live on every
+site page" note.
+
+**SSG prerender + sitemap + OG images** (`apps/web/src/entry-server.tsx`,
+`scripts/build-static.mjs`): a genuinely separate SSR entry that renders
+**only** the ten public marketing/legal pages directly (never the full
+`<App/>` route tree), specifically so prerendering never touches Better
+Auth's `useSession` or any hook that assumes a browser — those live
+exclusively in the authenticated app routes, untouched by this. `vite
+build --ssr` produces a Node-runnable bundle; a plain Node script then
+`renderToString`s each route into the built `index.html` shell, injects
+per-page `<title>`/description/canonical/OG meta, and writes
+`sitemap.xml` + `robots.txt` + a real `404.html`. OG images are genuinely
+rendered, not stubbed: an SVG built from the same design template
+(`Kwartaal Site Patterns.dc.html`'s wordmark + headline + timeline-strip
+motif) is rasterized to PNG at build time via `@resvg/resvg-js` — one real
+1200×630 PNG per page, verified visually (see gate table). Added
+`public/_redirects` because adding a real `404.html` silently broke
+Cloudflare Pages' implicit "no 404.html → fall back to index.html for
+everything" SPA behavior the app (`/app/*`, `/signin`, `/onboarding`,
+`/accept-invite/*`) was relying on — caught before it shipped, not after.
+**Simplification, stated plainly**: the client does a fresh `createRoot`
+render on top of the prerendered HTML rather than `hydrateRoot`-based
+hydration, since there's no browser available in this environment to
+verify a hydration match against. The prerendered HTML is real and correct
+for crawlers/first-paint either way; this only affects whether the very
+first client paint is a diff-free hydration or a fast full re-render.
+
+### Gate results
+
+| Check                                                                    | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck` (4 workspaces)                                       | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `npm test` (128 tests total: 93 core + 4 db + 22 api + 9 web, 3 skipped) | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `npm run lint`                                                           | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `npm run format:check`                                                   | ✅                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| `npm run token-check`                                                    | ✅ 0 violations, 0 exceptions                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| `npm run build:web` (tsc → vite build → vite SSR build → prerender)      | ✅ 10 prerendered pages verified with real body text (`grep`-checked), 10 real OG PNGs (visually verified — see below), sitemap.xml + robots.txt + 404.html generated                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| `wrangler deploy --dry-run` (API)                                        | ✅ (3.67 MB / 604 KB gzip)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                 |
+| Live API smoke test                                                      | ✅ Fresh owner signup on live `wrangler dev`: onboarding → `hasProAccess: true` during trial → forced `firstQuarterClosedAt` non-null in D1 → `GET /quarters` still 200, `POST /hours-entries` now 402, `GET /billing/status` shows `hasProAccess: false` → `POST /billing/checkout-session` and `/portal-session` both correctly 503 with no Stripe key → built a **real, cryptographically signed** `customer.subscription.created` webhook payload with Stripe's own `generateTestHeaderString` and POSTed it → subscription row created, `hasProAccess` flips back to `true`, the same `POST /hours-entries` that 402'd now succeeds (201) → replayed the identical webhook event → still 200, exactly one subscription row (idempotency proven, not just asserted) → `POST /invites` → invited email signs up fresh → lands in the **inviter's org** as `role: "bookkeeper"` (not a new org) → invite gone from the owner's list → bookkeeper's mutation 403s, read 200s → `POST /orgs/deletion-request` → `deletionRequestedAt` set, `ExportJob` auto-created and completed → `POST /orgs/deletion-cancel` clears it |
+| Frontend verification                                                    | ⚠️ **No browser automation tool is available in this environment** (same standing limitation as Pillars 1, 3, and 4). Verified: production build succeeds, all 18 new modules transform cleanly through Vite, all unit tests pass, and — new this pillar — the prerendered HTML output was verified to contain real per-page body text and the generated OG images were visually inspected and confirmed correctly rendered (not garbled/blank). **Not verified**: actual interactive rendering, click-through behavior, or visual fidelity of the live (non-prerendered) app in a real browser.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+
+### Deviations / notes
+
+1. **No Stripe account exists — BLOCKED, exactly as flagged since Pillar 1's
+   external-resources list.** Every billing code path (`lib/stripe.ts`,
+   `routes/billing.ts`, the webhook handler) is fully built and live-tested
+   against its documented degraded behavior (503 when unconfigured,
+   idempotent + signature-verified webhook processing proven with a real
+   test-key-signed payload). What has **never** run: an actual Checkout
+   redirect completing against Stripe's real servers, an actual Customer
+   Portal session, or a webhook Stripe itself sent. `STRIPE_PRICE_MONTHLY`/
+   `STRIPE_PRICE_ANNUAL`/`STRIPE_SECRET_KEY`/`STRIPE_WEBHOOK_SECRET` are all
+   `REPLACE_WITH_*` placeholders or unset secrets in `wrangler.toml`. This
+   is the single largest remaining risk before launch — the first real
+   Stripe test-mode subscription needs to be walked through by hand once a
+   Stripe account exists, ideally before Pillar 6's hardening pass.
+2. **`checkout.session.completed` is deliberately unhandled.** Early in
+   this pillar I wired the checkout route to set `subscription_data.
+metadata.orgId` specifically so `customer.subscription.created` (which
+   fires immediately after checkout completes, with the full Subscription
+   object) is sufficient on its own — handling `checkout.session.completed`
+   too would mean two event types racing to write the same row for no
+   benefit. Documented here rather than left as a silent gap someone might
+   assume was an oversight.
+3. **The 30-day hard-delete sweep is deferred to Pillar 6**, bundled with
+   the already-deferred weekly backup dump (see Pillar 1's `scheduled.ts`
+   stub) since both are the same weekly-cron surface. The immediate,
+   real part — request/cancel + the grace-period export — is fully live.
+4. **A D1-backed route-test harness still doesn't exist** (Pillar 4's
+   deviation #6, unresolved). This pillar adds one more real unit test
+   (`lib/stripe-webhook.test.ts`, 3 tests) covering the one piece of the
+   webhook path that's genuinely pure crypto and needs no DB — signature
+   acceptance, wrong-secret rejection, and tampered-payload rejection,
+   using Stripe's own `generateTestHeaderString` rather than hand-rolled
+   HMAC. Every other new route (billing, invites, entitlement gate) is
+   verified only by the live smoke test above, not automated coverage.
+   Still worth prioritizing before Pillar 6.
+5. **Reminder-cadence editing in Settings reuses `POST /onboarding/
+complete`** rather than a new dedicated endpoint — that route was
+   already idempotent-after-first-completion (a second call only updates
+   preferences, never re-materializes quarters), so it doubles as a general
+   "update these business-profile settings" endpoint without new server
+   code. The Settings form re-submits the full onboarding payload
+   (hardcoding the non-editable fields to their current values) to change
+   just the cadence; a more surgical `PATCH /orgs/business-profile` would
+   be cleaner if Settings grows more editable fields later.
+6. **SSG prerender does client-side `createRoot`, not `hydrateRoot`**, a
+   simplification stated plainly in the "What's done" section above rather
+   than silently presented as full SSR hydration — the right fix (switch
+   `main.tsx` to `hydrateRoot` and verify no mismatch warnings) needs an
+   actual browser to verify against, which this environment doesn't have.
+7. **OG images are code-generated SVG→PNG, not pixel-matched to a Claude
+   Design export** — no such per-page raster asset exists in docs/design
+   (only the shared template's markup does). The template's structure
+   (wordmark, headline, italic subheadline, timeline-strip motif, quarter-
+   circle accent) is ported faithfully; exact typography (a generic
+   sans-serif rather than Inter, since embedding font files in a build-time
+   Node rasterizer felt like scope beyond what a social-preview image
+   needs) is the one acknowledged gap from pixel-fidelity.
+8. **`@resvg/resvg-js` and `stripe` are the two new dependencies** this
+   pillar adds (one per the plan's Stripe requirement, one a pragmatic
+   build-time choice for real OG images rather than shipping none) — no
+   others.
+9. **Deleted `Landing.tsx` and `PlaceholderScreen.tsx`** — both were
+   explicitly documented as Pillar-5-and-later placeholders in their own
+   Pillar 1 docstrings, and are now fully superseded (Home.tsx replaces
+   Landing; every placeholder route now has a real screen). `StateSwitcher.
+tsx` was left in place despite losing its only caller — it's a real,
+   tested, reusable component, and the plan's "state switcher retained as
+   a dev-only tool behind a flag" note (Pillar 3) was never actually wired
+   into Today.tsx in the first place, a pre-existing gap from Pillar 3 that
+   this pillar didn't introduce and isn't the right place to fix.
+
 ## Deferred to their pillar (not gaps — sequencing per the Build order)
 
 - CSV import UI (upload + column-mapping widget) and the named import
@@ -607,20 +878,31 @@ already covered everything needed):
   from VAT quarters (see Pillar 4 deviation #5) → natural follow-up
   whenever a cross-quarter lines endpoint is built, no fixed pillar.
 - A D1-backed route-test harness, to close the automated-coverage gap
-  flagged in Pillar 4 deviation #6 → worth doing before Pillar 5's Stripe
-  webhooks add more untested route surface.
-- Marketing site (7 `Kwartaal Site *.dc.html` screens are in `docs/design`
-  and confirmed complete — just not built yet), Stripe billing, paywall
-  interstitial wiring → **Pillar 5**.
-- Playwright e2e (this pillar's and Pillar 3's frontend work has never
-  been browser-tested — see the gate tables above), backup rehearsal,
-  production cutover → **Pillar 6**.
+  flagged in Pillar 4 deviation #6 and restated in Pillar 5 deviation #4
+  → worth doing **before Pillar 6's hardening pass**, not after — Pillar 6
+  is explicitly a testing/security pillar and shouldn't build its e2e
+  layer on top of zero route-level integration coverage underneath it.
+- The 30-day hard-cascade-delete sweep (Pillar 5 deviation #3) → **Pillar
+  6**, bundled with the already-deferred weekly backup dump on the same
+  cron surface.
+- SSG prerender uses client-side `createRoot` rather than `hydrateRoot`
+  (Pillar 5 deviation #6) → revisit once real browser verification is
+  possible.
+- Playwright e2e (Pillars 3, 4, and 5's frontend work has never been
+  browser-tested — see the gate tables above), backup rehearsal, the first
+  real Stripe test-mode walkthrough (Pillar 5 deviation #1 — the single
+  largest remaining pre-launch risk), production cutover → **Pillar 6**.
 
-## External resources — still needed, none blocking Pillar 5
+## External resources — still needed, none blocking Pillar 6
 
+- **Stripe test account** — still BLOCKED (Pillar 5 deviation #1). Every
+  billing code path is built and live-tested against its degraded
+  behavior, but Checkout/Portal/a-real-Stripe-webhook have never run
+  against an actual account. Needed before Pillar 6 can consider billing
+  hardened; ideally obtained and walked through by hand before Pillar 6
+  starts, not during it.
 - **Sentry DSN** — optional; degrades to structured console.error /
   `wrangler tail` today.
-- **Stripe test account** — needed for Pillar 5.
 - **Resend API key + verified domain** — dev-logs mode covers local testing;
   a real key is needed before trusting actual reminder delivery, and
   required before Pillar 6 launch.
@@ -629,23 +911,28 @@ already covered everything needed):
   named import adapters (generic CSV path doesn't need them; still blocked,
   three `it.skip` markers waiting).
 - **Browser Rendering access, confirmed against a real deployed
-  environment** — the local-dev failure path is now verified graceful
+  environment** — the local-dev failure path is verified graceful
   (job → `failed`, no crash), but the actual PDF has never been generated
   for real; verify `[browser]` access and the rendered output the first
   time staging is exercised.
 - Staging/production R2 buckets and Queues — self-provisionable, no user
   action needed; still placeholder names in `wrangler.toml`, to be created
-  when Pillar 5/6 actually exercises those environments.
+  when Pillar 6 actually exercises those environments.
 - **A real browser-testing capability** (Playwright, or manual click-through
-  access) — Pillars 3 and 4 together have shipped a large amount of
+  access) — Pillars 3, 4, and 5 together have shipped a large amount of
   frontend code verified only at the build/transform/unit-test level,
-  never rendered. Worth closing before Pillar 5 adds the marketing site and
-  billing flows on top.
+  never rendered. This is precisely what Pillar 6's Playwright e2e stage
+  exists to close.
 
 ## Next session
 
 Start with: "Read KWARTAAL-BUILD-PLAN.md, CLAUDE.md, and PROGRESS.md,
-continue with Pillar 5." Strongly consider opening the app in an actual
-browser first (`npm run dev:api` + `npm run dev:web`) to visually verify
-Pillars 3 and 4's screens before building the marketing site and billing
-flows on top of them — that verification still has not happened.
+continue with Pillar 6." Before writing any e2e tests, strongly consider:
+(1) obtaining a real Stripe test account and walking through one real
+Checkout → webhook → entitlement-unlocks cycle by hand, since Pillar 6's
+e2e flow explicitly includes "subscribe → gates reopen" and that path has
+only ever been simulated with a hand-signed webhook payload, never a real
+Stripe response; (2) opening the app in an actual browser
+(`npm run dev:api` + `npm run dev:web`) to visually verify Pillars 3-5's
+screens before writing Playwright specs against them — that verification
+still has not happened at all, for any pillar's frontend work.

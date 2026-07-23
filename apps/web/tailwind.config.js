@@ -84,6 +84,8 @@ export default {
 
         sand: "var(--color-sand)",
         reserve: "var(--color-reserve)",
+
+        "overlay-scrim": "var(--shadow-overlay-scrim)",
       },
       backgroundImage: {
         "not-yours": "var(--hatch-not-yours)",

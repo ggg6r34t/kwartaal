@@ -26,13 +26,19 @@ export interface Bindings {
   BETTER_AUTH_URL: string;
   APP_ORIGIN: string;
   EMAIL_FROM: string;
+  // Stripe Price ids (not secret — safe as plain vars). Placeholders until a
+  // real Stripe account exists; see lib/stripe.ts and PROGRESS.md.
+  STRIPE_PRICE_MONTHLY: string;
+  STRIPE_PRICE_ANNUAL: string;
 
   // Secrets (wrangler secret put) — absent in local dev, where degraded
-  // modes take over (see lib/secrets.ts, email/resend.ts, auth/secret.ts).
+  // modes take over (see lib/secrets.ts, email/resend.ts, auth/secret.ts,
+  // lib/stripe.ts).
   BETTER_AUTH_SECRET?: string;
   SECRETS_ENCRYPTION_KEY?: string;
   RESEND_API_KEY?: string;
   SENTRY_DSN?: string;
+  STRIPE_SECRET_KEY?: string;
   STRIPE_WEBHOOK_SECRET?: string;
 }
 

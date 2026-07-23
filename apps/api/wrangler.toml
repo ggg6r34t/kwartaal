@@ -56,6 +56,11 @@ ENVIRONMENT = "development"
 BETTER_AUTH_URL = "http://localhost:8787"
 APP_ORIGIN = "http://localhost:5173"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+# No Stripe test account exists yet (BLOCKED, see PROGRESS.md) — checkout
+# degrades to a clear "billing-not-configured" error until these + the
+# STRIPE_SECRET_KEY/STRIPE_WEBHOOK_SECRET secrets are real.
+STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
+STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 
 # ─── Staging ───────────────────────────────────────────────────────────────
 # R2 bucket / queue names below are provisioning placeholders — create the
@@ -70,6 +75,8 @@ ENVIRONMENT = "staging"
 BETTER_AUTH_URL = "https://REPLACE_WITH_STAGING_ORIGIN"
 APP_ORIGIN = "https://REPLACE_WITH_STAGING_ORIGIN,https://REPLACE_WITH_STAGING_ORIGIN.pages.dev"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
+STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 
 [[env.staging.d1_databases]]
 binding = "DB"
@@ -122,6 +129,8 @@ ENVIRONMENT = "production"
 BETTER_AUTH_URL = "https://REPLACE_WITH_PRODUCTION_ORIGIN"
 APP_ORIGIN = "https://REPLACE_WITH_PRODUCTION_ORIGIN"
 EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
+STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 
 [[env.production.d1_databases]]
 binding = "DB"

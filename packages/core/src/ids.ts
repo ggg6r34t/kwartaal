@@ -1,6 +1,7 @@
 export const ID_PREFIXES = {
   org: "org",
   user: "usr",
+  invite: "inv",
   businessProfile: "bprf",
   taxYearProfile: "typ",
   quarter: "qtr",

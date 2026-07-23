@@ -1,6 +1,10 @@
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import type { MeResponse } from "@kwartaal/core";
 import { primaryNav, secondaryNav, type NavItem } from "./nav";
 import { useMe } from "../hooks/useMe";
+import { setOnEntitlementRequired } from "../lib/api";
+import { PaywallInterstitial } from "../components/PaywallInterstitial";
 
 function NavButton({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -20,6 +24,28 @@ function NavButton({ item }: { item: NavItem }) {
   );
 }
 
+/**
+ * Distinct from hasProAccess: the trial grants Pro-equivalent access before
+ * the first quarter closes, but that's not the same claim as "you are a
+ * paying Pro subscriber" — showing "Pro" during the free trial would be
+ * misleading about what happens at the gate.
+ */
+function PlanBadge({ me }: { me: MeResponse }) {
+  const onTrial = me.businessProfile?.firstQuarterClosedAt == null;
+  const label = onTrial ? "Trial" : me.hasProAccess ? "Pro" : "Free";
+  return (
+    <span
+      className={`flex-none rounded-pill px-2 py-0.5 text-[10px] font-semibold ${
+        label === "Pro"
+          ? "bg-state-settled-bg text-state-settled-ink"
+          : "bg-wash text-faint"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function initialsFor(name: string): string {
   return name
     .split(" ")
@@ -33,9 +59,16 @@ function initialsFor(name: string): string {
 /** App shell: sidebar + nav + user card, ported 1:1 from docs/design (Kwartaal.dc.html). */
 export function AppShell() {
   const { me } = useMe();
+  const [showPaywall, setShowPaywall] = useState(false);
+
+  useEffect(() => {
+    setOnEntitlementRequired(() => setShowPaywall(true));
+    return () => setOnEntitlementRequired(() => {});
+  }, []);
 
   return (
     <div className="flex min-h-screen">
+      {showPaywall && <PaywallInterstitial onDismiss={() => setShowPaywall(false)} />}
       <nav
         aria-label="Main"
         className="sticky top-0 box-border flex h-screen w-56 flex-none flex-col border-r border-border px-3 py-5"
@@ -68,14 +101,15 @@ export function AppShell() {
           <div className="flex h-[30px] w-[30px] items-center justify-center rounded-full bg-wash text-[11px] font-semibold text-body">
             {initialsFor(me?.org.name ?? "Kwartaal")}
           </div>
-          <div>
-            <div className="text-[12.5px] font-semibold">
+          <div className="min-w-0 flex-1">
+            <div className="truncate text-[12.5px] font-semibold">
               {me?.org.name ?? "Loading…"}
             </div>
             <div className="text-[11px] text-body">
               {me?.businessProfile?.legalForm ?? "—"}
             </div>
           </div>
+          {me && <PlanBadge me={me} />}
         </div>
       </nav>
 

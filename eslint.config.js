@@ -30,7 +30,7 @@ export default tseslint.config(
     },
   },
   {
-    files: ["scripts/**/*.mjs", "*.config.js", "*.config.mjs"],
+    files: ["**/scripts/**/*.mjs", "**/*.config.js", "**/*.config.mjs"],
     languageOptions: {
       globals: {
         console: "readonly",

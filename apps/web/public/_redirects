@@ -1,0 +1,14 @@
+# Cloudflare Pages routing. Vite's `public/` is copied verbatim into dist/.
+#
+# The app itself (/app/*, /signin, /onboarding, /accept-invite/*) is a pure
+# client-side SPA — no prerendered file exists for e.g. /app/today, so
+# without this it would fall through to 404.html (which now exists because
+# Pillar 5 added a real one; Pages' old default "no 404.html → fall back to
+# index.html for everything" behavior no longer applies). Every OTHER path
+# either has a real prerendered file (marketing pages, legal pages) or is a
+# genuine 404 — those are deliberately NOT redirected here, so 404.html
+# still does its job.
+/app/*            /index.html   200
+/signin           /index.html   200
+/onboarding       /index.html   200
+/accept-invite/*  /index.html   200

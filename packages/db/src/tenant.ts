@@ -11,10 +11,12 @@ import { schema } from "./schema";
  * Deliberately excluded (org-invisible or the tenant root itself, reached
  * only via `.global`): orgs (the tenant root has no org_id column),
  * rateLimits (keyed by IP, not org), taxFigures, glossaryTerms (global
- * reference data), and Better Auth's user/session/account/verification.
+ * reference data), webhookEvents (keyed by provider event id, arrives with
+ * no org context), and Better Auth's user/session/account/verification.
  */
 const TENANT_TABLES = {
   users: schema.users,
+  invites: schema.invites,
   businessProfiles: schema.businessProfiles,
   taxYearProfiles: schema.taxYearProfiles,
   quarters: schema.quarters,

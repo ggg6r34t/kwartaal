@@ -31,5 +31,8 @@ export const meResponseSchema = z.object({
   org: orgSchema,
   role: roleSchema,
   businessProfile: businessProfileSchema.nullable(),
+  /** Computed server-side via hasProAccess — the frontend never re-derives entitlement itself. */
+  hasProAccess: z.boolean(),
+  deletionRequestedAt: z.number().int().nullable(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;

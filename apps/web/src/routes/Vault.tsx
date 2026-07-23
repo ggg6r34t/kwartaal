@@ -3,16 +3,16 @@ import {
   formatCents,
   parseAmountToCents,
   RECEIPT_CHECKLIST_ELEMENTS,
-  type ExportJob,
   type KmEntry,
   type Receipt,
   type ReceiptChecklistElement,
   type StartupCost,
   type VatRate,
 } from "@kwartaal/core";
-import { apiFetch, apiUrl } from "../lib/api";
+import { apiFetch } from "../lib/api";
 import { useQuarters } from "../hooks/useQuarters";
 import { useIncomeTax } from "../hooks/useIncomeTax";
+import { DataExportButton } from "../components/DataExportButton";
 
 const CHECKLIST_LABELS: Record<ReceiptChecklistElement, string> = {
   date: "Date",
@@ -79,57 +79,6 @@ export function Vault() {
         {yearFilter}.
       </footer>
     </div>
-  );
-}
-
-function DataExportButton() {
-  const [job, setJob] = useState<ExportJob | null>(null);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      if (pollRef.current) clearInterval(pollRef.current);
-    };
-  }, []);
-
-  async function start() {
-    const created = await apiFetch<ExportJob>("/export-jobs", {
-      method: "POST",
-      body: JSON.stringify({ kind: "data" }),
-    });
-    setJob(created);
-    pollRef.current = setInterval(async () => {
-      const jobs = await apiFetch<ExportJob[]>("/export-jobs");
-      const latest = jobs.find((j) => j.id === created.id);
-      if (latest && (latest.status === "completed" || latest.status === "failed")) {
-        setJob(latest);
-        if (pollRef.current) clearInterval(pollRef.current);
-      }
-    }, 3000);
-  }
-
-  if (job?.status === "completed") {
-    return (
-      <a
-        href={apiUrl(`/export-jobs/${job.id}/file`)}
-        className="rounded-control bg-accent px-3.5 py-2 text-[13px] font-semibold text-white hover:bg-accent-hover"
-      >
-        Download .zip
-      </a>
-    );
-  }
-
-  return (
-    <button
-      type="button"
-      onClick={() => void start()}
-      disabled={job?.status === "queued" || job?.status === "running"}
-      className="rounded-control border border-border-strong px-3.5 py-2 text-[13px] font-semibold text-ink hover:bg-wash disabled:opacity-50"
-    >
-      {job && job.status !== "failed"
-        ? "Preparing…"
-        : "Export everything for my bookkeeper (.zip)"}
-    </button>
   );
 }
 

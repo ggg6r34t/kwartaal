@@ -9,6 +9,7 @@ import { accessLog } from "./middleware/access-log";
 import { requireSession } from "./middleware/auth";
 import { csrfGuard } from "./middleware/csrf";
 import { rateLimit } from "./middleware/rate-limit";
+import { requireProForMutations } from "./middleware/entitlement";
 import { parseTrustedOrigins } from "./auth/origins";
 import { createAuth } from "./auth";
 import { logger } from "./lib/logger";
@@ -27,6 +28,10 @@ import { money } from "./routes/money";
 import { receipts } from "./routes/receipts";
 import { exportJobs } from "./routes/export-jobs";
 import { startupCosts } from "./routes/startup-costs";
+import { billing } from "./routes/billing";
+import { billingWebhook } from "./routes/billing-webhook";
+import { invites } from "./routes/invites";
+import { invitePreview } from "./routes/invite-preview";
 import { handleQueue } from "./queue";
 import { handleScheduled } from "./scheduled";
 
@@ -82,14 +87,28 @@ app.use(
 );
 app.route("/calculator", calculator);
 
-// Authenticated: CSRF guard then session gate, per-route RBAC inside modules.
+// Public Stripe webhook — signature-verified instead of session-gated, so it
+// deliberately skips csrfGuard (Stripe never sends a matching Origin) and
+// requireSession (no session exists for a server-to-server call).
+app.route("/webhooks/stripe", billingWebhook);
+
+// Public bookkeeper-invite preview (the invitee isn't authenticated yet) —
+// returns only org name + invited email, never anything else.
+app.route("/invite-preview", invitePreview);
+
+// Authenticated: CSRF guard then session gate, per-route RBAC inside
+// modules. requireProForMutations gates every non-GET request on the
+// mounts below (Free: calendar/reminders/calculator/glossary — everything
+// else is Pro, per locked decision #5); it's a no-op for the trial's first
+// quarter (firstQuarterClosedAt is still null) and for an active
+// subscriber.
 app.use("/orgs/*", csrfGuard, requireSession);
 app.route("/orgs", orgs);
 
 app.use("/onboarding/*", csrfGuard, requireSession);
 app.route("/onboarding", onboarding);
 
-app.use("/quarters/*", csrfGuard, requireSession);
+app.use("/quarters/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/quarters", quarters);
 
 app.use("/deadlines/*", csrfGuard, requireSession);
@@ -101,23 +120,34 @@ app.route("/glossary", glossary);
 app.use("/income-tax/*", csrfGuard, requireSession);
 app.route("/income-tax", incomeTax);
 
-app.use("/hours-entries/*", csrfGuard, requireSession);
+app.use("/hours-entries/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/hours-entries", hours);
 
-app.use("/km-entries/*", csrfGuard, requireSession);
+app.use("/km-entries/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/km-entries", km);
 
-app.use("/money/*", csrfGuard, requireSession);
+app.use("/money/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/money", money);
 
-app.use("/receipts/*", csrfGuard, requireSession);
+app.use("/receipts/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/receipts", receipts);
 
-app.use("/export-jobs/*", csrfGuard, requireSession);
+app.use("/export-jobs/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/export-jobs", exportJobs);
 
 app.use("/startup-costs/*", csrfGuard, requireSession);
 app.route("/startup-costs", startupCosts);
+
+// Billing itself is never Pro-gated — checkout is how a lapsed/free org
+// BECOMES Pro, and portal/status must work regardless of current
+// entitlement so a lapsed subscriber can always get back to paying.
+app.use("/billing/*", csrfGuard, requireSession);
+app.route("/billing", billing);
+
+// The bookkeeper seat itself is the Pro feature (locked decision #5:
+// "Pro includes one bookkeeper seat") — listing stays free, sending one doesn't.
+app.use("/invites/*", csrfGuard, requireSession, requireProForMutations);
+app.route("/invites", invites);
 
 app.notFound((c) => c.json({ error: "not-found" }, 404));
 

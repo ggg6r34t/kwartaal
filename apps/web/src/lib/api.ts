@@ -20,6 +20,19 @@ export function setOnUnauthenticated(handler: () => void): void {
   onUnauthenticated = handler;
 }
 
+/**
+ * Fires whenever any mutation hits requireProForMutations' 402 — the
+ * paywall is reactive by design (the design's own interstitial "fires
+ * after the first drawer-close", not preemptively disabled buttons), so a
+ * single global hook here is enough to catch every gated action app-wide
+ * without threading entitlement checks through every screen.
+ */
+let onEntitlementRequired: (() => void) | null = null;
+
+export function setOnEntitlementRequired(handler: () => void): void {
+  onEntitlementRequired = handler;
+}
+
 /** Paths are API-root-relative (apiFetch("/orgs/me")); credentials always included so the session cookie rides along. */
 export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const response = await fetch(`${BASE}${path}`, {
@@ -33,6 +46,10 @@ export async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> 
 
   if (response.status === 401) {
     onUnauthenticated?.();
+  }
+
+  if (response.status === 402) {
+    onEntitlementRequired?.();
   }
 
   if (!response.ok) {

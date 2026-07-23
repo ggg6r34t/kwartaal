@@ -14,6 +14,7 @@ import {
 import type { AppEnv } from "../bindings";
 import { toBusinessProfileDto } from "../lib/business-profile";
 import { audit } from "../lib/audit";
+import { computeEntitlement } from "../lib/entitlement";
 
 export const onboarding = new Hono<AppEnv>();
 
@@ -126,11 +127,16 @@ onboarding.post(
       .from(schema.orgs)
       .where(eq(schema.orgs.id, session.orgId));
     const [updatedProfile] = await tenantDb.select(schema.businessProfiles);
+    const hasProAccess = await computeEntitlement(tenantDb);
 
     const response: MeResponse = {
       org: { id: org!.id, name: org!.name, createdAt: org!.createdAt.getTime() },
       role: session.role,
       businessProfile: toBusinessProfileDto(updatedProfile!),
+      hasProAccess,
+      deletionRequestedAt: org!.deletionRequestedAt
+        ? org!.deletionRequestedAt.getTime()
+        : null,
     };
 
     return c.json(meResponseSchema.parse(response));

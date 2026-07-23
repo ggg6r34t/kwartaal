@@ -54,7 +54,7 @@ export function Pricing() {
               <span className="text-[11px] font-semibold uppercase tracking-wide text-accent">
                 Kwartaal Pro
               </span>
-              <span className="rounded-pill bg-accent-tint px-2.5 py-1 text-[11px] font-semibold text-accent">
+              <span className="rounded-pill bg-accent-tint px-2.5 py-1 text-[11px] font-semibold text-accent-ink">
                 annual — most choose this
               </span>
             </div>

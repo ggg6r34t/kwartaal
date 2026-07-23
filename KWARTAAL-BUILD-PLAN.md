@@ -38,9 +38,10 @@
 1. **Stack: Cloudflare-native, per STACK-BLUEPRINT.md.** Workers + Hono (`apps/api`),
    D1 + Drizzle (`packages/db`), Pages SPA with Vite + React 18 + Tailwind v3 +
    SSG prerender for public pages (`apps/web`), Better Auth (magic link + password,
-   blueprint's closed signup inverted to OPEN self-serve signup — same inversion as
-   Provata: flip `disableSignUp` on BOTH the password and magic-link paths, keep the
-   anti-enumeration send gate), npm workspaces, strict TS base config copied verbatim.
+   blueprint's closed signup inverted to OPEN self-serve signup — the same inversion
+   a sibling product in this account already made: flip `disableSignUp` on BOTH the
+   password and magic-link paths, keep the anti-enumeration send gate), npm
+   workspaces, strict TS base config copied verbatim.
    Same-origin Pages Function proxy copied as a pair with the Vite dev proxy, exactly
    as blueprint §9.
 2. **New machinery this product actually builds (blueprint §7 warns Hackiwi never
@@ -128,8 +129,9 @@ These incorporate every blueprint §11(b) fix. They are gate criteria, not sugge
   bound to the session org; the raw `Database` is never exported to route code;
   `.global` is the sole greppable escape hatch (health checks, Better Auth adapter,
   cron fan-out, TaxFigures/Glossary reads). The tenant-table-registry test comes too,
-  and the ESLint restriction rule from Provata: no raw `Database` import in any route
-  module. This is financial data — isolation failures are existential.
+  and the same ESLint restriction rule a sibling product in this account already
+  proved out: no raw `Database` import in any route module. This is financial data
+  — isolation failures are existential.
 - **Zod on every route** (fixes §11.2): `@hono/zod-validator` for params/query/body
   of every endpoint; response schemas defined alongside. Money fields validate as
   integer cents; dates as ISO strings at the boundary.
@@ -203,9 +205,10 @@ requireRole`). CORS locked to the app origin, not `cors()` bare (fixes §11.9).
   (both the VAT checklist and the annual studio fully completable by keyboard),
   visible focus, 4.5:1 contrast, deadline states always icon+label+color,
   term-chips operable and correctly announced by screen readers, reduced-motion
-  variant of the drawer-close moment. Run Provata against Kwartaal's marketing site
-  in CI as a smoke test; the build fails on new critical issues. (Sibling products
-  auditing each other is both QA and the best marketing line either has.)
+  variant of the drawer-close moment. Run the axe-core a11y scan against Kwartaal's
+  marketing site in CI as a smoke test, self-contained in this repo with no
+  dependency on any external product or account; the build fails on new critical
+  issues.
 
 ## Feature inventory (confirmed against `docs/design/`)
 
@@ -406,8 +409,8 @@ Parallel agents may port independent screens within a pillar.
    31 Jan renders correctly, missing next-year TaxFigures shows the pending
    state, no reminder fires at the wrong Amsterdam hour across the DST change);
    backup restore rehearsed once against staging per the runbook; engine golden
-   tests green as a release gate; Provata
-   self-scan smoke test on the marketing site (0 critical); reminder idempotency
+   tests green as a release gate; an axe-core a11y
+   scan smoke test on the marketing site (0 critical); reminder idempotency
    test (double cron run, single email); security pass (headers, authz probing
    between two seeded orgs, bookkeeper-role mutation probe, webhook forgery,
    upload content-type bypass attempt); load pass on the reminder fan-out (1.000
@@ -438,7 +441,7 @@ contains every receipt object plus machine-readable JSON/CSV of all records;
 account deletion cascades D1 rows and R2 objects by test. Production env block
 deployed, `wrangler tail` shows structured request logs with request-id and org-id,
 Sentry receives a thrown test error. The marketing site scores 0 critical issues in
-Provata. The token-discipline check passes with zero unexplained exceptions —
+the axe-core a11y scan. The token-discipline check passes with zero unexplained exceptions —
 no raw color value or var()-arbitrary class exists outside theme.css. Nowhere
 in the product does the word "compliant" appear as a verdict, and
 every computed total renders its tax-year tag.

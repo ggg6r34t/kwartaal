@@ -7,7 +7,8 @@
 staging must never double as production. Each has its own D1 database, R2
 buckets, queues, and vars, never shared across environments (see
 PROGRESS.md's "Environment" section for the full topology decision this
-mirrors — the account's existing Provata layout).
+mirrors — the account's existing per-environment layout, used by a sibling
+product in the same account).
 
 **Everything below is real and deployed**, not a plan — see PROGRESS.md's
 "Environment" section for the full narrative (what broke, what got fixed,

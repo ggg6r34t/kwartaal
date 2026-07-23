@@ -45,7 +45,17 @@ jobs:
       - name: Token-discipline check
         run: npm run token-check
 
+      - name: Brand-hygiene check (no cross-product mentions)
+        run: npm run brand-check
+
       - run: npm run build:web
+
+      - name: Install Playwright browsers (chromium)
+        working-directory: e2e
+        run: npx playwright install --with-deps chromium
+
+      - name: Accessibility scan (axe-core, marketing site)
+        run: npm run test:a11y
 
       - name: wrangler deploy --dry-run (API)
         working-directory: apps/api

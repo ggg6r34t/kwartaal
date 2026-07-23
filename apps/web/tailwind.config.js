@@ -26,6 +26,7 @@ export default {
           hover: "var(--color-accent-hover)",
           tint: "var(--color-accent-tint)",
           border: "var(--color-accent-soft-border)",
+          ink: "var(--color-accent-ink)",
         },
 
         "state-settled": {

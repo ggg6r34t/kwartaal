@@ -42,7 +42,7 @@ export function LegalPage({
             aria-label="Not tax advice"
             className="mb-6 rounded-control border border-accent-border bg-accent-tint p-5"
           >
-            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-accent">
+            <div className="mb-1.5 text-xs font-semibold uppercase tracking-wide text-accent-ink">
               Read this first
             </div>
             <p className="m-0 font-explainer text-[15px] italic leading-relaxed">

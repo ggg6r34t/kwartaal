@@ -11,6 +11,9 @@ import { defineConfig, devices } from "@playwright/test";
  */
 export default defineConfig({
   testDir: "./tests",
+  // accessibility.spec.ts runs under its own config (playwright.a11y.config.ts)
+  // against `vite preview`, not this dev-stack webServer pair.
+  testIgnore: /accessibility\.spec\.ts/,
   fullyParallel: false,
   workers: 1,
   retries: 0,

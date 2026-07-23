@@ -18,11 +18,13 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "token-check": "node scripts/token-discipline-check.mjs",
+    "brand-check": "node scripts/brand-hygiene-check.mjs",
     "dev:api": "npm run dev -w @kwartaal/api",
     "dev:web": "npm run dev -w @kwartaal/web",
     "build:web": "npm run build -w @kwartaal/web",
     "db:local:reset": "npm run db:local:reset -w @kwartaal/api",
-    "test:e2e": "npm run e2e -w @kwartaal/e2e"
+    "test:e2e": "npm run e2e -w @kwartaal/e2e",
+    "test:a11y": "npm run a11y -w @kwartaal/e2e"
   },
   "devDependencies": {
     "@eslint/js": "^9.17.0",

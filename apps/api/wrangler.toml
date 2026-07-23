@@ -67,7 +67,7 @@ STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
 STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"
 
 # ─── Staging ───────────────────────────────────────────────────────────────
-# Mirrors the account's Provata layout (see docs/deploy-runbook.md /
+# Mirrors the account's existing per-environment layout (see docs/deploy-runbook.md /
 # PROGRESS.md's "Environment" section): kwartaal-api-staging is a Worker
 # with no custom domain — it's the same-origin proxy's upstream only, the
 # browser never calls it directly, so its workers.dev hostname is fine as

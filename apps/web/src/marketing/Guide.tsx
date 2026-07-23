@@ -55,7 +55,7 @@ export function Guide() {
                 aria-hidden="true"
                 className="h-3 w-3 bg-accent [border-radius:0_100%_0_0]"
               />
-              <span className="font-ui text-[11px] font-semibold uppercase tracking-wide text-accent">
+              <span className="font-ui text-[11px] font-semibold uppercase tracking-wide text-accent-ink">
                 From your KVK registration
               </span>
             </div>

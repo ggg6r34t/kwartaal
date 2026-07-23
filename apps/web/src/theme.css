@@ -16,8 +16,16 @@
   /* Paper / ink neutrals */
   --color-paper: #faf8f3;
   --color-ink: #1f1b16;
-  --color-body: #7a7266;
-  --color-faint: #a39a8b;
+  /* Darkened from #7a7266 (4.02:1 against --color-wash, just under the
+     4.5:1 WCAG AA bar — axe-core's CI scan caught it on the footer's
+     "Privacy & terms" link) to a value that clears 4.5:1. */
+  --color-body: #6e6659;
+  /* Darkened from #a39a8b (2.36:1 against --color-wash — a real WCAG AA
+     failure axe-core's CI scan caught, since this token backs real
+     information like deadline states, not just decoration) to a value
+     that clears 4.5:1 against every background it's used on while keeping
+     the same warm-neutral hue. */
+  --color-faint: #6b6459;
   --color-border: #e7e0d4;
   --color-border-strong: #d8d0c2;
   --color-border-hairline: #f0ede5;
@@ -30,6 +38,13 @@
   --color-accent-hover: #a8420e;
   --color-accent-tint: #faefe7;
   --color-accent-soft-border: #e7c9b4;
+  /* --color-accent as small text on --color-accent-tint is 4.22:1 — a real
+     WCAG AA failure axe-core's CI scan caught (Read this first / Not tax
+     advice labels). Lightening the tint further would wash it out to
+     near-white and lose the visual "tinted box" language, so this is a
+     darker ink variant for text specifically, same idea as the
+     state-*-ink tokens below. */
+  --color-accent-ink: #a8420e;
 
   /* Deadline-state colors */
   --color-state-settled: #5f7b5a;

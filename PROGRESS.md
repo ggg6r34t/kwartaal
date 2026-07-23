@@ -1180,10 +1180,11 @@ checklist as concrete unchecked items, not vague prose).
 | Check                                                                                                                                    | Result                                                                                                                                                                                                           |
 | ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `npm run typecheck` (5 workspaces incl. new `e2e`)                                                                                       | ✅                                                                                                                                                                                                               |
-| `npm test` (150 tests: 93 core + 4 db + 44 api + 9 web, 3 skipped)                                                                       | ✅                                                                                                                                                                                                               |
+| `npm test` (154 tests: 93 core + 4 db + 48 api + 9 web, 3 skipped)                                                                       | ✅                                                                                                                                                                                                               |
 | `npm run lint`                                                                                                                           | ✅                                                                                                                                                                                                               |
 | `npm run format:check`                                                                                                                   | ✅ (one pre-existing untracked file, `VERIFICATION-PROTOCOL.md`, not part of this pillar's work, left untouched and unstaged)                                                                                    |
 | `npm run token-check`                                                                                                                    | ✅ 0 violations, 0 exceptions                                                                                                                                                                                    |
+| `npm run brand-check`                                                                                                                    | ✅ 0 violations (outside the two exempt files — see the brand-hygiene sweep note below)                                                                                                                          |
 | `npm run build:web`                                                                                                                      | ✅                                                                                                                                                                                                               |
 | `wrangler deploy --dry-run` (API)                                                                                                        | ✅ (3.68 MB / 605 KB gzip)                                                                                                                                                                                       |
 | `apps/api` integration suite (real D1/R2/Queues/Cron under workerd)                                                                      | ✅ 13 files / 44 tests, run twice consecutively for reliability                                                                                                                                                  |
@@ -1191,7 +1192,7 @@ checklist as concrete unchecked items, not vague prose).
 | Backup restore rehearsal                                                                                                                 | ✅ performed locally (real disaster-recovery drill, two real failures found and documented, dev environment restored exactly) — **staging rehearsal BLOCKED**, no staging credentials                            |
 | Load pass (1,000 orgs, one cron tick)                                                                                                    | ✅ ~3.3s scan+enqueue                                                                                                                                                                                            |
 | Engine golden tests                                                                                                                      | ✅ (part of the 93 core tests above — unchanged from Pillar 2)                                                                                                                                                   |
-| Provata self-scan                                                                                                                        | ❌ BLOCKED — external tool, no access in this environment                                                                                                                                                        |
+| Accessibility scan (axe-core, `npm run test:a11y`)                                                                                       | ✅ self-contained CI step added, 10/10 marketing pages, 0 critical/serious — see the brand-hygiene sweep note below                                                                                              |
 | Production cutover (custom domain, live Stripe/Resend/Sentry, TaxFigures 2026 real figures, uptime monitor, cron verified in production) | ❌ BLOCKED — no real Cloudflare/Stripe/Resend/Sentry credentials; this is a hard-to-reverse, shared-infrastructure action not taken unilaterally without explicit user authorization even if credentials existed |
 
 ### Deviations / notes
@@ -1202,8 +1203,10 @@ checklist as concrete unchecked items, not vague prose).
    figures, uptime monitor, cron verified firing in production) needs
    real external credentials this environment doesn't have. Listed as a
    concrete checklist in `docs/deploy-runbook.md` rather than left vague.
-2. **Provata self-scan is BLOCKED** — no access to the tool itself, not a
-   testing gap this repo can close from the inside.
+2. **Accessibility scan was originally planned against an external sibling-
+   product tool** — since resolved with a self-contained axe-core CI step
+   added directly to this repo (see the brand-hygiene sweep note further
+   below); no longer a dependency on anything outside this repo.
 3. **The Stripe test-mode round-trip remains simulated, not real** (same
    BLOCKED status as Pillar 5) — flow 1's e2e deliberately stops before
    the subscribe step rather than faking a Stripe response.
@@ -1235,11 +1238,101 @@ checklist as concrete unchecked items, not vague prose).
    same as any other local dev usage, and easily cleared with
    `npm run db:local:reset`).
 
+### Brand-hygiene sweep
+
+Housekeeping pass before certification: Kwartaal and the sibling product
+this account also runs are separate products, and this repo needed to stand
+alone — every "provata" mention (case-insensitive), whole repo, found via a
+recursive grep and resolved so the underlying reasoning survived, only the
+name dropped.
+
+**Hits found and resolved** (18 total, across 4 tracked files —
+`STACK-BLUEPRINT.md` never actually contained the word, so its stated
+exemption turned out to be moot rather than needed; the one "sibling
+product" attribution in `KWARTAAL-BUILD-PLAN.md`'s header that was
+explicitly meant to stay turned out to be about a different product,
+Hackiwi, and was never a Provata mention in the first place):
+
+| File                     | Hits | Resolution                                                                                                                                                                                                                                                                                                                   |
+| ------------------------ | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `KWARTAAL-BUILD-PLAN.md` | 5    | Genericized to "a sibling product in this account" / "the sibling product's cron" etc. across the Better Auth decision, the tenant-guard ESLint rule, the self-accessibility section (also replaced the Provata-scan dependency with a self-contained axe-core CI run), the Pillar 6 scope list, and the Definition of Done. |
+| `PROGRESS.md`            | ~11  | Genericized throughout: gate-results table, deviations list, the Environment section's access-unblock narrative, the D1/R2/Queues comparison, the cron-limit finding, the DLQ note, and the Next-session note.                                                                                                               |
+| `docs/deploy-runbook.md` | 1    | "the account's existing per-environment layout, used by a sibling product in the same account."                                                                                                                                                                                                                              |
+| `apps/api/wrangler.toml` | 1    | Comment: "Mirrors the account's existing per-environment layout (see docs/deploy-runbook.md)."                                                                                                                                                                                                                               |
+
+**User-facing surfaces** (marketing copy, legal pages, error messages,
+email templates, test names, seed data): **zero hits** — nothing to
+resolve there, so no High-severity findings.
+
+**Tooling dependency removed**: the plan's self-accessibility check
+originally called out to the sibling product's own scanning tool. Replaced
+with a real, self-contained `@axe-core/playwright` scan
+(`e2e/tests/accessibility.spec.ts`, `e2e/playwright.a11y.config.ts`) that
+builds the marketing site (`npm run build:web`), serves it via `vite
+preview`, and runs axe against all 10 marketing routes (`/`, `/pricing`,
+`/how-it-works`, `/guide`, `/about`, `/companion`, `/privacy`, `/terms`,
+`/dpa`, `/impressum`) tagged `wcag2a`/`wcag2aa`/`wcag21a`/`wcag21aa`/
+`wcag22aa`, failing on any `critical`/`serious`-impact violation. Wired
+into CI (`.github/workflows/ci.yml`) as its own step, after
+`build:web` and a scoped `playwright install --with-deps chromium`, with no
+dependency on any external product or account. `npm run test:a11y` runs it
+locally.
+
+Implementing the real scan surfaced **3 genuine, previously-unknown WCAG AA
+contrast failures** in `apps/web/src/theme.css` — not caused by this sweep,
+caught by finally running a real automated check instead of relying on the
+(external, now-removed) tool: `--color-faint` at 2.36:1 against
+`--color-wash` (well under the 4.5:1 bar — this token backs real deadline-
+state information, not just decoration), `--color-body` at 4.02:1 (just
+under the bar, caught on the footer's "Privacy & terms" link), and
+`--color-accent` as small text on `--color-accent-tint` at 4.22:1 (caught
+on the "Read this first" / "Not tax advice" disclaimer labels and two
+similar callouts). Fixed by darkening `--color-faint` and `--color-body` in
+place, and adding a new `--color-accent-ink` token (following the existing
+`-ink` naming convention) for text-on-tint rather than darkening the shared
+`--color-accent` brand color globally — that would have far wider blast
+radius (buttons, links, icons) for a color CLAUDE.md documents as "deep
+NL-orange, sparingly." Wired into `tailwind.config.js` as `accent.ink` and
+applied at the three usage sites: `LegalPage.tsx`, `Guide.tsx`,
+`Pricing.tsx`. All 10 pages now pass with 0 critical/serious violations.
+
+**Guard added**: `scripts/brand-hygiene-check.mjs` — walks every
+git-tracked file (`git ls-files`, so `node_modules`/`.wrangler`/build
+output are naturally excluded without a separate ignore list) and fails on
+any case-insensitive "provata" match outside two exempt files:
+`STACK-BLUEPRINT.md` (external input document) and this file, `PROGRESS.md`
+(the build log has to be able to name what a brand-hygiene sweep found and
+fixed — the same reason a security report names the vulnerability it
+closed — without permanently tripping its own guard). Wired into CI as its
+own step (`npm run brand-check`), immediately after the existing
+token-discipline check. Currently: **0 violations** outside the two exempt
+files.
+
+**Full gate re-run after the sweep + the axe-core contrast fixes**: all
+green (see updated Gate results table above; typecheck/test/lint/format/
+token-check/brand-check/build/a11y/dry-run all pass). One unrelated finding
+surfaced and closed out along the way, documented for completeness: a full
+sequential local e2e run intermittently 429'd on Maya sign-in
+(`rate-limited`) after many back-to-back manual test invocations during
+this session. Root-caused (not a regression from this sweep) to the `auth`
+rate-limit bucket in `apps/api/src/middleware/rate-limit.ts` being keyed by
+`cf-connecting-ip`, which local Miniflare never sets — so every local
+request collapses onto one shared `auth:unknown` counter, and it persists
+in the local D1 SQLite file across separate `wrangler dev` process
+restarts. Confirmed by inspecting the local `rate_limits` table directly
+(counts of 12–18 already accumulated in the 60s window from this session's
+own repeated diagnostic runs) and by re-running the full suite from a
+cleared table: **22/22 pass.** Not a product bug and not a CI risk — CI
+always starts from an empty local D1, so a single clean run's own auth
+traffic doesn't approach the limit of 20/60s. No code change made for this;
+noted here rather than silently worked around.
+
 ## Environment
 
-Topology decision (user-supplied, mirroring the account's existing Provata
-layout — Kwartaal's sibling product), now **fully live**, not just a plan —
-staging and production are real, deployed, and verified end to end.
+Topology decision (user-supplied, mirroring the account's existing
+per-environment layout, already proven out by a sibling product in the same
+account), now **fully live**, not just a plan — staging and production are
+real, deployed, and verified end to end.
 
 - **Pages**: `kwartaal-staging` (real project, deployed) →
   `staging.kwartaal.app` (custom domain **not yet attached** — dashboard-
@@ -1303,20 +1396,20 @@ Two separate issues, not one:
    Pages subcommands don't read `wrangler.toml`'s `account_id` field at
    all; they need `CLOUDFLARE_ACCOUNT_ID` set as an actual environment
    variable. Once set, `wrangler pages project list` immediately worked
-   and showed Provata's real projects (`provata-staging`,
-   `provata-production` — confirming "No Git connection" matches the
+   and showed the sibling product's real projects (its staging and
+   production Pages projects — confirming "No Git connection" matches the
    topology description exactly) — the token already had the Cloudflare
    Pages permission the whole time; it was never a permissions problem.
 
 Re-tested after pinning `account_id` (before the `CLOUDFLARE_ACCOUNT_ID`
 fix was found):
 
-| Command                       | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
-| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `wrangler d1 list`            | ✅ works — confirms `kwartaal` / `kwartaal-staging` / `kwartaal-production` (all real, matching the IDs already in `wrangler.toml`), and shows `provata-production` / `provata-staging` exist as sibling D1s.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
-| `wrangler r2 bucket list`     | ✅ works — confirms `kwartaal-storage` / `kwartaal-backups` (dev) exist; **no staging/production Kwartaal buckets exist yet**. Provata's real R2 buckets are named `provata-assets-production` / `provata-assets-staging` — note the `-assets-` middle segment, i.e. Provata's actual convention is `<product>-<resource>-<env>`, not a bare `<env>` suffix on the resource name. Kwartaal's own R2 bindings are already named `RECEIPTS`/`BACKUPS` (two buckets, not one "assets" bucket), so this doesn't map 1:1 — `wrangler.toml` currently uses `kwartaal-storage-staging`/`kwartaal-backups-staging` (and the `-production` pair), consistent with Kwartaal's own two-bucket shape rather than force-fitting Provata's single-bucket name. |
-| `wrangler queues list`        | ✅ works — confirms `kwartaal-reminders` / `kwartaal-exports` (dev, unsuffixed) exist; **no staging/production Kwartaal queues exist yet**. Provata's queues are `provata-scans-production`, `provata-scans-production-dlq`, and the `-staging` pair — Provata uses one queue per env plus an explicit dead-letter queue; Kwartaal's `wrangler.toml` doesn't declare DLQs for `REMINDER_QUEUE`/`EXPORT_QUEUE` in any environment, dev included. Worth a deliberate follow-up decision (not made unilaterally here), not a name-mirroring gap.                                                                                                                                                                                                    |
-| `wrangler pages project list` | ❌ failed at this point — resolved moments later by setting `CLOUDFLARE_ACCOUNT_ID` (see above), not by a permission grant.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+| Command                       | Result                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `wrangler d1 list`            | ✅ works — confirms `kwartaal` / `kwartaal-staging` / `kwartaal-production` (all real, matching the IDs already in `wrangler.toml`), and shows the sibling product's own staging/production D1s exist alongside them in the same account.                                                                                                                                                                                                                                                                                                                                                                                      |
+| `wrangler r2 bucket list`     | ✅ works — confirms `kwartaal-storage` / `kwartaal-backups` (dev) exist; **no staging/production Kwartaal buckets exist yet**. The sibling product's real R2 buckets follow a `<product>-<resource>-<env>` convention (one "assets" bucket per env) — Kwartaal's own R2 bindings are already named `RECEIPTS`/`BACKUPS` (two buckets, not one "assets" bucket), so this doesn't map 1:1 — `wrangler.toml` currently uses `kwartaal-storage-staging`/`kwartaal-backups-staging` (and the `-production` pair), consistent with Kwartaal's own two-bucket shape rather than force-fitting the other product's single-bucket name. |
+| `wrangler queues list`        | ✅ works — confirms `kwartaal-reminders` / `kwartaal-exports` (dev, unsuffixed) exist; **no staging/production Kwartaal queues exist yet**. The sibling product uses one queue per env plus an explicit dead-letter queue; Kwartaal's `wrangler.toml` doesn't declare DLQs for `REMINDER_QUEUE`/`EXPORT_QUEUE` in any environment, dev included. Worth a deliberate follow-up decision (not made unilaterally here), not a name-mirroring gap.                                                                                                                                                                                 |
+| `wrangler pages project list` | ❌ failed at this point — resolved moments later by setting `CLOUDFLARE_ACCOUNT_ID` (see above), not by a permission grant.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ### What got provisioned and deployed, in order
 
@@ -1369,13 +1462,14 @@ staging`, `kwartaal-storage-production`, `kwartaal-backups-production`).
    each once its custom domain is live.
 9. **Account-wide cron trigger limit hit**: the account's plan capped cron
    triggers at 5 total; 4 were already in use (`kwartaal-api-staging`: 2,
-   `provata-api-production`: 1, `provata-api-staging`: 1 — confirmed via
-   direct Cloudflare API calls to `/workers/scripts` and each script's
-   `/schedules` endpoint, not guessed), leaving no room for production's 2. Discussed trade-offs (drop staging's weekly backup cron since
-   staging data is disposable and reproducible from `seed.sql`, vs. the
-   equivalent cut on Provata's side, vs. upgrading the plan) — **user
-   upgraded off the Free tier** rather than sacrifice any cron, so no
-   crons were removed from anywhere.
+   the sibling product's production Worker: 1, its staging Worker: 1 —
+   confirmed via direct Cloudflare API calls to `/workers/scripts` and
+   each script's `/schedules` endpoint, not guessed), leaving no room for
+   production's 2. Discussed trade-offs (drop staging's weekly backup cron
+   since staging data is disposable and reproducible from `seed.sql`, vs.
+   the equivalent cut on the sibling product's side, vs. upgrading the
+   plan) — **user upgraded off the Free tier** rather than sacrifice any
+   cron, so no crons were removed from anywhere.
 10. `kwartaal-api-production` deployed for real: custom domain
     `api.kwartaal.app` attached and verified (`curl` returns the real
     `{"ok":true,"service":"kwartaal-api","environment":"production"}`),
@@ -1421,8 +1515,8 @@ ALLOWLIST` (fails safe — blocks all sends — but needs real addresses to
   BLOCKED as documented earlier in this file — none of those credentials
   were touched this session.
 - Queues declared with no dead-letter queue in any Kwartaal environment
-  (Provata's do have one per env) — a deliberate follow-up decision, not
-  made unilaterally here.
+  (the sibling product's do have one per env) — a deliberate follow-up
+  decision, not made unilaterally here.
 
 ## Next session
 
@@ -1447,6 +1541,8 @@ CLAUDE.md, and PROGRESS.md" and then, with the user:
    Sentry DSN.
 4. Now that staging is real, the backup-restore rehearsal's still-untested
    `--remote` path (see Pillar 6's "Backup restore" section above) can
-   finally be rehearsed against it for real, and a Provata scan can
-   actually run against the deployed marketing site — both were BLOCKED
-   purely on "no staging exists," which is no longer true.
+   finally be rehearsed against it for real — it was BLOCKED purely on
+   "no staging exists," which is no longer true. The accessibility gate
+   itself no longer needs this (see the brand-hygiene sweep note above —
+   it's a self-contained axe-core CI step now, not a scan of a deployed
+   site by an external tool).

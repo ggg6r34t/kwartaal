@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Newsreader:ital,wght@1,400;1,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3;color:#1F1B16;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#C24E12}a:hover{color:#A8420E}
+::selection{background:#F3DFCE}
+@keyframes drawerSettle{0%{transform:translateY(-18px);opacity:0}65%{transform:translateY(3px);opacity:1}100%{transform:translateY(0);opacity:1}}
+@keyframes stepCollapse{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes termIn{from{transform:translateY(10px) scale(0.98);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+@keyframes explainIn{from{transform:translateY(6px);opacity:0}to{transform:translateY(0);opacity:1}}
+@keyframes fillGrow{from{width:0}to{width:83%}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+</style>
+</helmet>
+<div style="max-width:960px;margin:0 auto;padding:52px 48px 80px">
+  <div style="margin-bottom:36px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#C24E12;margin-bottom:8px">Kwartaal · Motion spec</div>
+    <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">Motion like a well-made drawer</h1>
+    <p style="margin:0;font-size:14px;line-height:1.6;color:#7A7266;max-width:620px;text-wrap:pretty">Physical, brief, and only where it carries meaning. Nothing loops, nothing bounces for joy, nothing moves while you read. The one indulgence: closing a quarter feels like a drawer settling shut.</p>
+  </div>
+
+  <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:20px 26px;margin-bottom:36px">
+    <div style="display:grid;grid-template-columns:150px 1fr;gap:8px 22px;font-size:13px;line-height:1.6">
+      <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#A39A8B">tokens</span><span><strong>fast</strong> 120ms · <strong>base</strong> 240ms · <strong>enter</strong> 260ms · <strong>settle</strong> 420ms — nothing longer, ever</span>
+      <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#A39A8B">easing</span><span><strong>standard</strong> cubic-bezier(0.2, 0.7, 0.3, 1) — one curve for the whole product; <strong>hover</strong> plain ease</span>
+      <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#A39A8B">properties</span><span>transform + opacity only. Height/layout never animates — content must not push while reading</span>
+      <span style="font-family:ui-monospace,Menlo,monospace;font-size:12px;color:#A39A8B">reduced motion</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:12px">@media (prefers-reduced-motion: reduce) — all animation and transitions off, states still legible without them</span>
+    </div>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:22px">
+
+    <section style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 28px">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+        <h2 style="margin:0;font-size:17px;font-weight:600">1 · The drawer settles</h2>
+        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#A39A8B">drawerSettle · 420ms · standard · once</span>
+        <button onClick="{{replay1}}" style="margin-left:auto;background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Replay</button>
+      </div>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.55;color:#7A7266;max-width:560px">Fires exactly once, when "I filed it" + "I paid it" are both checked. Drops from −18px, overshoots +3px at 65%, rests. The 3px overshoot is the weight of the drawer — remove it and the moment dies.</p>
+      <div style="background:#FAF8F3;border:1px solid #F0EDE5;border-radius:10px;padding:18px;min-height:104px">
+        <sc-if value="{{show1}}" hint-placeholder-val="{{ true }}">
+          <div style="animation:drawerSettle 420ms cubic-bezier(0.2,0.7,0.3,1) both;background:#EBF0E7;border:1px solid #CBD6C4;border-radius:12px;padding:18px 22px;display:flex;gap:16px;align-items:center">
+            <div style="width:36px;height:36px;flex:none;border-radius:10px;background:#5F7B5A;display:flex;align-items:center;justify-content:center"><svg width="15" height="15" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+            <div><div style="font-size:16px;font-weight:600">Q3 is closed.</div><div style="font-size:12.5px;color:#5B6653">Filed and paid on 22 October 2026.</div></div>
+          </div>
+        </sc-if>
+      </div>
+      <div style="margin-top:12px;font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#7A7266;line-height:1.7">0% &nbsp;translateY(-18px) opacity 0<br>65% translateY(3px) &nbsp;opacity 1 &nbsp;← overshoot<br>100% translateY(0)</div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 28px">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+        <h2 style="margin:0;font-size:17px;font-weight:600">2 · Checklist step advances</h2>
+        <span style="font-family:ui-monospace,Menlo,menlo,monospace;font-size:11.5px;color:#A39A8B">stepCollapse · 240ms · standard</span>
+        <button onClick="{{replay2}}" style="margin-left:auto;background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Replay</button>
+      </div>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.55;color:#7A7266;max-width:560px">Confirming a step swaps the open card for its done row; the next step's content enters 240ms later with a 6px rise. No sliding heights — the swap is a cut, only the incoming content moves.</p>
+      <div style="background:#FAF8F3;border:1px solid #F0EDE5;border-radius:10px;padding:18px;display:flex;flex-direction:column;gap:8px;min-height:130px">
+        <sc-if value="{{show2}}" hint-placeholder-val="{{ true }}">
+          <div style="animation:stepCollapse 240ms cubic-bezier(0.2,0.7,0.3,1) both;background:#fff;border:1px solid #E7E0D4;border-radius:10px;display:flex;align-items:center;gap:12px;padding:13px 18px">
+            <span style="width:20px;height:20px;flex:none;border-radius:6px;background:#5F7B5A;display:flex;align-items:center;justify-content:center"><svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+            <span style="font-size:13.5px;font-weight:600">Income confirmed</span><span style="font-size:12.5px;color:#7A7266;font-feature-settings:'tnum'">· €20.000,00 ex btw</span>
+            <span style="margin-left:auto;font-size:12px;font-weight:600;color:#C24E12">Edit</span>
+          </div>
+          <div style="animation:stepCollapse 240ms cubic-bezier(0.2,0.7,0.3,1) 240ms both;background:#fff;border:1px solid #E7E0D4;border-radius:10px;display:flex;align-items:flex-start;gap:12px;padding:15px 18px">
+            <span style="font-size:11.5px;font-weight:700;color:#C24E12;font-feature-settings:'tnum';padding-top:2px">02</span>
+            <div><div style="font-size:14px;font-weight:600">Confirm expenses with reclaimable btw</div><div style="font-size:12px;color:#7A7266;margin-top:2px">Enters 240ms after the done row lands.</div></div>
+          </div>
+        </sc-if>
+      </div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 28px">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+        <h2 style="margin:0;font-size:17px;font-weight:600">3 · Term drawer opens</h2>
+        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#A39A8B">termIn · 180ms · standard · exit 120ms fade</span>
+        <button onClick="{{replay3}}" style="margin-left:auto;background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Replay</button>
+      </div>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.55;color:#7A7266;max-width:560px">Tapping a dotted term raises the glossary card from the corner: 10px rise + scale 0.98→1. Quick enough to feel like a footnote, not a modal. Escape or × closes with a plain 120ms fade — exits never animate position.</p>
+      <div style="background:#FAF8F3;border:1px solid #F0EDE5;border-radius:10px;padding:18px;display:flex;justify-content:flex-end;min-height:150px">
+        <sc-if value="{{show3}}" hint-placeholder-val="{{ true }}">
+          <div style="animation:termIn 180ms cubic-bezier(0.2,0.7,0.3,1) both;width:300px;background:#fff;border:1px solid #E7E0D4;border-radius:14px;box-shadow:0 12px 40px rgba(31,27,22,0.14);padding:16px 18px">
+            <div style="display:flex;align-items:baseline;gap:8px"><span style="font-size:15px;font-weight:700">voorbelasting</span><span style="font-family:ui-monospace,Menlo,monospace;font-size:10.5px;color:#A39A8B">VOOR-buh-las-ting</span><span style="margin-left:auto;color:#A39A8B">×</span></div>
+            <div style="font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:14px;color:#7A7266;margin:4px 0 8px">= input VAT — the btw you paid</div>
+            <p style="margin:0;font-size:12.5px;line-height:1.55;color:#1F1B16">The btw on your business purchases. You subtract it before paying the difference.</p>
+          </div>
+        </sc-if>
+      </div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 28px">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+        <h2 style="margin:0;font-size:17px;font-weight:600">4 · Set-aside fill &amp; explain layer</h2>
+        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#A39A8B">fillGrow 420ms · explainIn 260ms</span>
+        <button onClick="{{replay4}}" style="margin-left:auto;background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:8px 13px;font-family:inherit;font-size:12.5px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Replay</button>
+      </div>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.55;color:#7A7266;max-width:560px">Bars fill once on first paint (never on re-render). Turning the learn layer on lifts each aside in with a 6px rise — turning it off is instant, no exit animation.</p>
+      <div style="background:#FAF8F3;border:1px solid #F0EDE5;border-radius:10px;padding:18px;min-height:96px">
+        <sc-if value="{{show4}}" hint-placeholder-val="{{ true }}">
+          <div style="height:8px;border-radius:4px;background:#F0E9DC;overflow:hidden;margin-bottom:14px"><div style="animation:fillGrow 420ms cubic-bezier(0.2,0.7,0.3,1) both;height:100%;border-radius:4px;background:repeating-linear-gradient(135deg, rgba(194,78,18,0.55) 0px, rgba(194,78,18,0.55) 4px, rgba(194,78,18,0.22) 4px, rgba(194,78,18,0.22) 8px)"></div></div>
+          <p style="animation:explainIn 260ms cubic-bezier(0.2,0.7,0.3,1) 180ms both;margin:0;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:14.5px;line-height:1.5;color:#7A7266"><span style="color:#C24E12">※</span>&nbsp; Btw is hatched everywhere: it passes through your account, but it was never yours.</p>
+        </sc-if>
+      </div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 28px">
+      <div style="display:flex;align-items:baseline;gap:12px;margin-bottom:6px">
+        <h2 style="margin:0;font-size:17px;font-weight:600">5 · Hover &amp; press</h2>
+        <span style="font-family:ui-monospace,Menlo,monospace;font-size:11.5px;color:#A39A8B">background 120ms ease · press instant</span>
+      </div>
+      <p style="margin:0 0 16px;font-size:13px;line-height:1.55;color:#7A7266;max-width:560px">Hover tints background only — no lift, no scale, no shadow growth. Press feedback is instant. Try them:</p>
+      <div style="display:flex;gap:12px;flex-wrap:wrap">
+        <button style="background:#C24E12;color:#fff;border:none;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background 120ms ease" style-hover="background:#A8420E">Primary — darkens</button>
+        <button style="background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:11px 17px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer;transition:background 120ms ease" style-hover="background:#F1ECE2">Secondary — washes</button>
+        <button style="display:inline;font-size:14px;font-weight:600;color:#1F1B16;background:none;border:none;padding:0;border-bottom:2px dotted #C24E12;cursor:pointer;transition:background 120ms ease" style-hover="background:#FAEFE7">term — highlights</button>
+      </div>
+    </section>
+
+    <section style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 28px">
+      <h2 style="margin:0 0 12px;font-size:17px;font-weight:600">What never moves</h2>
+      <div style="font-size:13.5px;line-height:1.8;color:#7A7266">Numbers never count up — a tax figure that animates looks negotiable. The year timeline never pulses. Nothing loops. No confetti when a quarter closes: the drawer settling <em>is</em> the celebration, and it happens exactly once.</div>
+    </section>
+
+  </div>
+  <footer style="border-top:1px solid #E7E0D4;padding-top:16px;margin-top:36px;font-size:12px;color:#A39A8B;display:flex;gap:16px;flex-wrap:wrap"><a href="Kwartaal.dc.html">App</a><a href="Kwartaal Onboarding.dc.html">Onboarding</a><a href="Kwartaal Mobile.dc.html">Mobile pass</a><a href="Kwartaal Components.dc.html">Component sheet</a></footer>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { show1: true, show2: true, show3: true, show4: true };
+  replay(k) {
+    this.setState({ [k]: false });
+    clearTimeout(this['_t' + k]);
+    this['_t' + k] = setTimeout(() => this.setState({ [k]: true }), 60);
+  }
+  renderVals() {
+    return {
+      show1: this.state.show1, show2: this.state.show2, show3: this.state.show3, show4: this.state.show4,
+      replay1: () => this.replay('show1'), replay2: () => this.replay('show2'),
+      replay3: () => this.replay('show3'), replay4: () => this.replay('show4')
+    };
+  }
+}
+</script>
+</body>
+</html>

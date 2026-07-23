@@ -1,0 +1,160 @@
+name = "kwartaal-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+compatibility_flags = ["nodejs_compat"]
+
+# ─── Default environment (local dev) ──────────────────────────────────────
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kwartaal"
+database_id = "b3db5d28-6742-4001-953d-f41215fda024"
+# Migrations live in packages/db, not next to the Worker.
+migrations_dir = "../../packages/db/migrations"
+
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "kwartaal-storage"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "kwartaal-backups"
+
+[[queues.producers]]
+queue = "kwartaal-reminders"
+binding = "REMINDER_QUEUE"
+
+[[queues.consumers]]
+queue = "kwartaal-reminders"
+max_batch_size = 10
+max_retries = 3
+
+[[queues.producers]]
+queue = "kwartaal-exports"
+binding = "EXPORT_QUEUE"
+
+[[queues.consumers]]
+queue = "kwartaal-exports"
+max_batch_size = 5
+max_retries = 3
+
+# Browser Rendering — print-to-PDF of handoff/annual summaries only (Pillar 4).
+# Requires the account to have Browser Rendering enabled; not yet exercised —
+# verify access when Pillar 4 wires the actual PDF build (see PROGRESS.md).
+[browser]
+binding = "BROWSER"
+
+# Hourly reminder fan-out (the product's heartbeat) + weekly logical DB
+# backup export. The scheduled() handler dispatches on event.cron.
+[triggers]
+crons = ["0 * * * *", "0 3 * * 0"]
+
+[vars]
+ENVIRONMENT = "development"
+BETTER_AUTH_URL = "http://localhost:8787"
+APP_ORIGIN = "http://localhost:5173"
+EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+
+# ─── Staging ───────────────────────────────────────────────────────────────
+# R2 bucket / queue names below are provisioning placeholders — create the
+# real staging-suffixed resources before Pillar 3 (queues) / Pillar 4 (R2)
+# exercise staging, then replace these names. D1 is already live.
+
+[env.staging]
+name = "kwartaal-api-staging"
+
+[env.staging.vars]
+ENVIRONMENT = "staging"
+BETTER_AUTH_URL = "https://REPLACE_WITH_STAGING_ORIGIN"
+APP_ORIGIN = "https://REPLACE_WITH_STAGING_ORIGIN,https://REPLACE_WITH_STAGING_ORIGIN.pages.dev"
+EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "kwartaal-staging"
+database_id = "1f6143ea-11e3-444c-88b0-f95253669a78"
+migrations_dir = "../../packages/db/migrations"
+
+[[env.staging.r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "REPLACE_WITH_STAGING_R2_BUCKET"
+
+[[env.staging.r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "REPLACE_WITH_STAGING_BACKUPS_BUCKET"
+
+[[env.staging.queues.producers]]
+queue = "REPLACE_WITH_STAGING_REMINDER_QUEUE"
+binding = "REMINDER_QUEUE"
+
+[[env.staging.queues.consumers]]
+queue = "REPLACE_WITH_STAGING_REMINDER_QUEUE"
+max_batch_size = 10
+max_retries = 3
+
+[[env.staging.queues.producers]]
+queue = "REPLACE_WITH_STAGING_EXPORT_QUEUE"
+binding = "EXPORT_QUEUE"
+
+[[env.staging.queues.consumers]]
+queue = "REPLACE_WITH_STAGING_EXPORT_QUEUE"
+max_batch_size = 5
+max_retries = 3
+
+[env.staging.browser]
+binding = "BROWSER"
+
+[env.staging.triggers]
+crons = ["0 * * * *", "0 3 * * 0"]
+
+# ─── Production ────────────────────────────────────────────────────────────
+# Explicit block per non-negotiable #8 (never let staging double as prod).
+# D1 is real; R2/queue names are placeholders to provision at the Pillar 6
+# staging→production cutover, alongside the custom domain and live secrets.
+
+[env.production]
+name = "kwartaal-api-production"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+BETTER_AUTH_URL = "https://REPLACE_WITH_PRODUCTION_ORIGIN"
+APP_ORIGIN = "https://REPLACE_WITH_PRODUCTION_ORIGIN"
+EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+
+[[env.production.d1_databases]]
+binding = "DB"
+database_name = "kwartaal-production"
+database_id = "0bea5c64-71c2-4d0a-965f-43b213deb4a9"
+migrations_dir = "../../packages/db/migrations"
+
+[[env.production.r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "REPLACE_WITH_PRODUCTION_R2_BUCKET"
+
+[[env.production.r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "REPLACE_WITH_PRODUCTION_BACKUPS_BUCKET"
+
+[[env.production.queues.producers]]
+queue = "REPLACE_WITH_PRODUCTION_REMINDER_QUEUE"
+binding = "REMINDER_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "REPLACE_WITH_PRODUCTION_REMINDER_QUEUE"
+max_batch_size = 10
+max_retries = 3
+
+[[env.production.queues.producers]]
+queue = "REPLACE_WITH_PRODUCTION_EXPORT_QUEUE"
+binding = "EXPORT_QUEUE"
+
+[[env.production.queues.consumers]]
+queue = "REPLACE_WITH_PRODUCTION_EXPORT_QUEUE"
+max_batch_size = 5
+max_retries = 3
+
+[env.production.browser]
+binding = "BROWSER"
+
+[env.production.triggers]
+crons = ["0 * * * *", "0 3 * * 0"]

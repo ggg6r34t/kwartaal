@@ -1,0 +1,32 @@
+{
+  "name": "kwartaal",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "workspaces": [
+    "packages/core",
+    "packages/db",
+    "apps/api",
+    "apps/web"
+  ],
+  "scripts": {
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "build": "npm run build --workspaces --if-present",
+    "lint": "eslint . --max-warnings=0",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "token-check": "node scripts/token-discipline-check.mjs",
+    "dev:api": "npm run dev -w @kwartaal/api",
+    "dev:web": "npm run dev -w @kwartaal/web",
+    "build:web": "npm run build -w @kwartaal/web",
+    "db:local:reset": "npm run db:local:reset -w @kwartaal/api"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.17.0",
+    "eslint": "^9.17.0",
+    "prettier": "^3.4.2",
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.18.0"
+  }
+}

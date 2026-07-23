@@ -1,0 +1,10 @@
+dist
+dist-server
+.wrangler
+node_modules
+packages/db/migrations
+docs
+*.tsbuildinfo
+KWARTAAL-BUILD-PLAN.md
+STACK-BLUEPRINT.md
+CLAUDE.md

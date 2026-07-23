@@ -1,0 +1,28 @@
+{
+  "name": "@kwartaal/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "db:local:reset": "wrangler d1 migrations apply kwartaal --local && wrangler d1 execute kwartaal --local --file=../../packages/db/seed.sql"
+  },
+  "dependencies": {
+    "@kwartaal/core": "*",
+    "@kwartaal/db": "*",
+    "@hono/zod-validator": "^0.4.1",
+    "better-auth": "^1.6.23",
+    "drizzle-orm": "^0.45.2",
+    "hono": "^4.6.14",
+    "zod": "^3.24.1"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.7",
+    "wrangler": "^3.99.0"
+  }
+}

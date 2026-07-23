@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Newsreader:ital,wght@1,400;1,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#F5F1E9;color:#1F1B16;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#C24E12}a:hover{color:#A8420E}
+:focus-visible{outline:2px solid #C24E12;outline-offset:2px;border-radius:4px}
+::selection{background:#F3DFCE}
+</style>
+</helmet>
+<div style="max-width:1240px;margin:0 auto;padding:52px 48px 90px">
+  <div style="margin-bottom:40px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#C24E12;margin-bottom:8px">Kwartaal · Site patterns</div>
+    <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">OG image &amp; 404</h1>
+    <p style="margin:0;font-size:14px;line-height:1.6;color:#7A7266;max-width:620px">Shared social template and the error page, both in product voice. Nav and footer live on every site page; see <a href="Kwartaal Site Home.dc.html">Home</a>.</p>
+  </div>
+
+  <h2 style="margin:0 0 16px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;border-bottom:1px solid #E7E0D4;padding-bottom:10px">OG-image template — 1200 × 630</h2>
+  <div data-screen-label="OG image" style="width:1140px;aspect-ratio:1200/630;background:#FAF8F3;border:1px solid #E7E0D4;border-radius:12px;overflow:hidden;position:relative;margin-bottom:14px;box-shadow:0 12px 34px rgba(31,27,22,0.07)">
+    <div aria-hidden="true" style="position:absolute;right:-90px;bottom:-90px;width:340px;height:340px;background:#F3E4D3;border-radius:100% 0 0 0"></div>
+    <div style="position:absolute;top:56px;left:64px;display:flex;align-items:center;gap:14px">
+      <span aria-hidden="true" style="width:34px;height:34px;background:#C24E12;border-radius:0 100% 0 0;display:block"></span>
+      <span style="font-size:28px;font-weight:700;letter-spacing:-0.01em">Kwartaal</span>
+    </div>
+    <div style="position:absolute;left:64px;top:170px;max-width:660px">
+      <div style="font-size:52px;font-weight:600;letter-spacing:-0.025em;line-height:1.1;text-wrap:pretty">Dutch taxes,<br>minus the dread.</div>
+      <div style="margin-top:20px;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:22px;color:#7A7266">For self-employed expats in the Netherlands</div>
+    </div>
+    <div style="position:absolute;left:64px;right:64px;bottom:64px">
+      <div style="position:relative;max-width:760px">
+        <div aria-hidden="true" style="position:absolute;top:15px;left:30px;right:30px;height:2px;background:#EAE4D8"></div>
+        <div style="display:flex;justify-content:space-between;position:relative">
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:32px;height:32px;border-radius:9px;background:#5F7B5A;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div><span style="font-size:14px;font-weight:600">Q1</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:32px;height:32px;border-radius:9px;background:#5F7B5A;display:flex;align-items:center;justify-content:center"><svg width="13" height="13" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div><span style="font-size:14px;font-weight:600">Q2</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:32px;height:32px;box-sizing:border-box;border-radius:50%;border:2.5px solid #C24E12;background:#fff;color:#C24E12;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;font-feature-settings:'tnum'">12</div><span style="font-size:14px;font-weight:600;color:#C24E12">Q3</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:32px;height:32px;box-sizing:border-box;border-radius:50%;border:2px dashed #C9C0B0;background:#FAF8F3"></div><span style="font-size:14px;font-weight:600;color:#A39A8B">Q4</span></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:32px;height:32px;box-sizing:border-box;border-radius:50%;border:2px dashed #C9C0B0;background:#FAF8F3"></div><span style="font-size:14px;font-weight:600;color:#A39A8B">IB</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p style="margin:0 0 48px;font-size:12px;color:#7A7266;line-height:1.6;max-width:640px">Template rules: paper background, wordmark top-left, headline swaps per page (Pricing: “One price. The year included.”), timeline strip always present as the signature. Quarter-circle motif echoes bottom-right at 12% tint.</p>
+
+  <h2 style="margin:0 0 16px;font-size:12px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;border-bottom:1px solid #E7E0D4;padding-bottom:10px">404 — product voice</h2>
+  <div data-screen-label="404" style="background:#FAF8F3;border:1px solid #E7E0D4;border-radius:12px;overflow:hidden;box-shadow:0 12px 34px rgba(31,27,22,0.07)">
+    <div style="border-bottom:1px solid #EAE4D8;padding:18px 36px;display:flex;align-items:center">
+      <span style="display:flex;align-items:center;gap:9px"><span aria-hidden="true" style="width:18px;height:18px;background:#C24E12;border-radius:0 100% 0 0"></span><span style="font-size:15.5px;font-weight:700">Kwartaal</span></span>
+      <a href="Kwartaal Site Pricing.dc.html" style="margin-left:auto;background:#C24E12;color:#fff;border-radius:8px;padding:9px 14px;font-size:13px;font-weight:600;text-decoration:none" style-hover="background:#A8420E;color:#fff">Start free</a>
+    </div>
+    <div style="padding:84px 36px 96px;text-align:center">
+      <div style="display:flex;justify-content:center;margin-bottom:26px">
+        <span style="width:44px;height:44px;box-sizing:border-box;border-radius:50%;border:2px dashed #C9C0B0;background:#FAF8F3;display:flex;align-items:center;justify-content:center;color:#A39A8B;font-size:15px;font-weight:700;font-feature-settings:'tnum'">?</span>
+      </div>
+      <h1 style="margin:0 0 10px;font-size:32px;font-weight:600;letter-spacing:-0.02em">This page isn’t on the calendar.</h1>
+      <p style="margin:0 0 26px;font-size:15px;line-height:1.6;color:#7A7266">Nothing is due, nothing is overdue — the address just doesn’t exist. (Error 404, if you’re keeping records. We would be.)</p>
+      <div style="display:flex;justify-content:center;gap:14px">
+        <a href="Kwartaal Site Home.dc.html" style="background:#C24E12;color:#fff;border-radius:8px;padding:12px 18px;font-size:14px;font-weight:600;text-decoration:none" style-hover="background:#A8420E;color:#fff">Back to the year</a>
+        <a href="Kwartaal Site Guide.dc.html" style="background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:11px 17px;font-size:14px;font-weight:600;text-decoration:none" style-hover="background:#F1ECE2;color:#1F1B16">Read the tax guide</a>
+      </div>
+    </div>
+  </div>
+</div>
+
+</x-dc>
+</body>
+</html>

@@ -1,0 +1,167 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Single token source (CLAUDE.md styling architecture, item 1). Every color,
+ * radius, shadow, and font stack the product uses lives here as a CSS
+ * custom property, values taken 1:1 from docs/design (the component sheet's
+ * "Color" section is canonical where a value appears in more than one
+ * place with minor drift between screens).
+ *
+ * No hex/hsl/oklch/rgb/color-mix anywhere else in the codebase — see
+ * scripts/token-discipline-check.mjs, which CI runs against this rule.
+ */
+:root {
+  /* Paper / ink neutrals */
+  --color-paper: #faf8f3;
+  --color-ink: #1f1b16;
+  --color-body: #7a7266;
+  --color-faint: #a39a8b;
+  --color-border: #e7e0d4;
+  --color-border-strong: #d8d0c2;
+  --color-border-hairline: #f0ede5;
+  --color-wash: #f1ece2;
+  --color-selection: #f3dfce;
+  --color-surface: #ffffff;
+
+  /* Accent (deep NL-orange, sparingly) */
+  --color-accent: #c24e12;
+  --color-accent-hover: #a8420e;
+  --color-accent-tint: #faefe7;
+  --color-accent-soft-border: #e7c9b4;
+
+  /* Deadline-state colors */
+  --color-state-settled: #5f7b5a;
+  --color-state-settled-ink: #5b6653;
+  --color-state-settled-bg: #ebf0e7;
+  --color-state-settled-border: #cbd6c4;
+
+  --color-state-due-soon: var(--color-accent);
+  --color-state-due-soon-bg: var(--color-accent-tint);
+  --color-state-due-soon-border: var(--color-accent-soft-border);
+
+  --color-state-overdue: #a6412c;
+  --color-state-overdue-hover: #8e3624;
+  --color-state-overdue-bg: #f6e9e4;
+  --color-state-overdue-border: #ddb1a4;
+
+  --color-state-open: var(--color-body);
+  --color-state-open-border: #c9c0b0;
+
+  --color-state-future: var(--color-faint);
+  --color-state-future-border: var(--color-border-strong);
+
+  /* handled_elsewhere: square like settled (it's done), wash fill, no
+     green, no check — deliberately no celebratory weight. */
+  --color-state-neutral: var(--color-faint);
+  --color-state-neutral-bg: var(--color-wash);
+  --color-state-neutral-border: #c9c0b0;
+
+  /* "Figures pending" (annual studio, new tax year not yet seeded) */
+  --color-pending-border: var(--color-border-strong);
+  --color-pending-figure: #c9c0b0;
+  --color-pending-callout-bg: #fcf7f0;
+  --color-pending-callout-border: #e9d9c8;
+  --color-pending-callout-icon: #c9a96a;
+
+  /* Semantic sage / amber / clay (badges, deduction status, etc.) */
+  --color-sage: var(--color-state-settled);
+  --color-sage-ink: var(--color-state-settled-ink);
+  --color-sage-bg: var(--color-state-settled-bg);
+  --color-amber: #a87e24;
+  --color-amber-ink: #8a6a1e;
+  --color-amber-bg: #f6efdd;
+  --color-clay: var(--color-state-overdue);
+  --color-clay-bg: var(--color-state-overdue-bg);
+
+  /* Money-split neutrals (Money screen bands) */
+  --color-sand: #c9bca4;
+  --color-reserve: #eed9a8;
+
+  /*
+   * The "not your money" tint/hatch recipe (reserved exclusively for money
+   * that passes through but is never the user's — btw, income-tax reserve).
+   * repeating-linear-gradient 135deg, accent at 50%/20% alpha, 4px stripes.
+   * Never solid, never any other meaning.
+   */
+  --hatch-not-yours: repeating-linear-gradient(
+    135deg,
+    rgb(194 78 18 / 0.5) 0px,
+    rgb(194 78 18 / 0.5) 4px,
+    rgb(194 78 18 / 0.2) 4px,
+    rgb(194 78 18 / 0.2) 8px
+  );
+
+  /* Radii */
+  --radius-card: 12px;
+  --radius-control: 8px;
+  --radius-pill: 99px;
+
+  /* Shadows */
+  --shadow-card: 0 12px 34px rgb(31 27 22 / 0.07);
+  --shadow-dialog: 0 24px 60px rgb(31 27 22 / 0.22);
+  --shadow-overlay-scrim: rgb(31 27 22 / 0.28);
+
+  /* Focus ring */
+  --ring-focus: var(--color-accent);
+  --ring-focus-offset: 2px;
+
+  /* Fonts: UI grotesque + the serif explainer accent */
+  --font-ui: "Inter", system-ui, sans-serif;
+  --font-explainer: "Newsreader", Georgia, serif;
+}
+
+body {
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-ui);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--color-selection);
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring-focus);
+  outline-offset: var(--ring-focus-offset);
+  border-radius: 4px;
+}
+
+@keyframes drawer-settle {
+  0% {
+    transform: translateY(-18px);
+    opacity: 0;
+  }
+  65% {
+    transform: translateY(3px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-drawer-settle {
+  animation: drawer-settle 420ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
+
+@media print {
+  nav,
+  [data-no-print] {
+    display: none !important;
+  }
+  body {
+    background: #fff;
+  }
+}

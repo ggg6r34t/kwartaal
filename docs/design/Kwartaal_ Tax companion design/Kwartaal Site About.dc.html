@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Newsreader:ital,wght@1,400;1,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3;color:#1F1B16;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#C24E12}a:hover{color:#A8420E}
+:focus-visible{outline:2px solid #C24E12;outline-offset:2px;border-radius:4px}
+::selection{background:#F3DFCE}
+</style>
+</helmet>
+<div data-screen-label="About and contact">
+<header style="border-bottom:1px solid #EAE4D8">
+  <nav aria-label="Main" style="max-width:1120px;margin:0 auto;padding:20px 40px;display:flex;align-items:center;gap:30px">
+    <a href="Kwartaal Site Home.dc.html" style="display:flex;align-items:center;gap:9px;text-decoration:none;color:#1F1B16"><span aria-hidden="true" style="width:20px;height:20px;background:#C24E12;border-radius:0 100% 0 0;display:block"></span><span style="font-size:16.5px;font-weight:700;letter-spacing:-0.01em">Kwartaal</span></a>
+    <div style="margin-left:auto;display:flex;align-items:center;gap:26px">
+      <a href="Kwartaal Site How It Works.dc.html" style="font-size:13.5px;font-weight:500;color:#1F1B16;text-decoration:none" style-hover="color:#C24E12">How it works</a>
+      <a href="Kwartaal Site Pricing.dc.html" style="font-size:13.5px;font-weight:500;color:#1F1B16;text-decoration:none" style-hover="color:#C24E12">Pricing</a>
+      <a href="Kwartaal Site Guide.dc.html" style="font-size:13.5px;font-weight:500;color:#1F1B16;text-decoration:none" style-hover="color:#C24E12">Tax guide</a>
+      <a href="Kwartaal Site Companion.dc.html" style="font-size:13.5px;font-weight:500;color:#1F1B16;text-decoration:none" style-hover="color:#C24E12">Works alongside</a>
+      <a href="Kwartaal Site Pricing.dc.html" style="background:#C24E12;color:#fff;border-radius:8px;padding:10px 16px;font-size:13.5px;font-weight:600;text-decoration:none" style-hover="background:#A8420E;color:#fff">Start free</a>
+    </div>
+  </nav>
+</header>
+
+<main style="max-width:680px;margin:0 auto;padding:68px 40px 90px">
+  <section aria-label="About">
+    <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#C24E12;margin-bottom:12px">About</div>
+    <h1 style="margin:0 0 20px;font-size:38px;font-weight:600;letter-spacing:-0.02em;line-height:1.12">We moved here too.</h1>
+    <div style="font-size:15.5px;line-height:1.75;color:#33302A;display:flex;flex-direction:column;gap:18px">
+      <p style="margin:0;text-wrap:pretty">Kwartaal is built by two people who both missed a btw deadline in their first year in the Netherlands — not from laziness, but because nobody tells you the quarter ended. One of us is a designer who freelanced through it; the other spent years building financial software and translating Belastingdienst letters for friends.</p>
+      <p style="margin:0;text-wrap:pretty">We built the tool we wanted that first October: something that watches the calendar, explains the words, and shows the arithmetic — without pretending to be an accountant, and without asking you to abandon the tools you already use.</p>
+      <p style="margin:0;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:17px;color:#7A7266">Kwartaal will never file for you. Understanding is the product.</p>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:28px">
+      <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:20px 22px;display:flex;gap:14px;align-items:center">
+        <span aria-hidden="true" style="width:44px;height:44px;flex:none;border-radius:50%;background:#F1ECE2;border:1px solid #E7E0D4;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#7A7266">F1</span>
+        <div><div style="font-size:14px;font-weight:600">Founder name</div><div style="font-size:12.5px;color:#7A7266">Design · ex-freelancer, Amsterdam</div></div>
+      </div>
+      <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:20px 22px;display:flex;gap:14px;align-items:center">
+        <span aria-hidden="true" style="width:44px;height:44px;flex:none;border-radius:50%;background:#F1ECE2;border:1px solid #E7E0D4;display:flex;align-items:center;justify-content:center;font-size:15px;font-weight:600;color:#7A7266">F2</span>
+        <div><div style="font-size:14px;font-weight:600">Founder name</div><div style="font-size:12.5px;color:#7A7266">Engineering · fintech, Rotterdam</div></div>
+      </div>
+    </div>
+    <div style="margin-top:14px;background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:20px 24px;display:flex;gap:16px;align-items:flex-start">
+      <span aria-hidden="true" style="width:22px;height:22px;flex:none;border-radius:7px;background:#EBF0E7;border:1px solid #CBD6C4;display:flex;align-items:center;justify-content:center;margin-top:1px"><svg width="10" height="10" viewBox="0 0 12 12"><path d="M2 6.5 5 9.5 10 3" stroke="#5F7B5A" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></span>
+      <div><div style="font-size:14px;font-weight:600;margin-bottom:3px">EU data residency, privacy-first</div><div style="font-size:13px;line-height:1.6;color:#7A7266">Your data lives on EU servers, under GDPR, and is never sold or used to train anything. Export or delete it whenever you like — it’s yours.</div></div>
+    </div>
+  </section>
+
+  <section aria-label="Contact" style="margin-top:56px;padding-top:36px;border-top:1px solid #E7E0D4">
+    <h2 style="margin:0 0 14px;font-size:23px;font-weight:600;letter-spacing:-0.01em">Contact</h2>
+    <div style="display:flex;flex-direction:column;gap:10px;font-size:14.5px;line-height:1.6">
+      <div><strong>Product &amp; support</strong> — <a href="mailto:hallo@kwartaal.nl">hallo@kwartaal.nl</a> <span style="color:#A39A8B">· we answer within one working day</span></div>
+      <div><strong>Privacy</strong> — <a href="mailto:privacy@kwartaal.nl">privacy@kwartaal.nl</a></div>
+      <div><strong>Post</strong> — <span style="color:#7A7266">Kwartaal B.V. · KVK 87654321 · Amsterdam, the Netherlands</span></div>
+    </div>
+    <p style="margin:16px 0 0;font-size:13px;color:#A39A8B;line-height:1.6">One thing we can’t do by email: give tax advice about your situation. For that, a bookkeeper or belastingadviseur is the right person — Pro includes a seat for them.</p>
+  </section>
+
+  <section aria-label="Legal page template" style="margin-top:64px">
+    <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:16px;border-bottom:2px dashed #D8D0C2;padding-bottom:10px">Design pattern · legal page template — shared by Privacy / Terms / DPA / Impressum</div>
+    <div style="background:#fff;border:1px solid #E7E0D4;border-radius:14px;padding:34px 38px">
+      <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:10px">Legal · last updated 1 July 2026</div>
+      <h2 style="margin:0 0 18px;font-size:28px;font-weight:600;letter-spacing:-0.015em">Privacy policy</h2>
+      <div aria-label="Not tax advice" style="border:1px solid #E9D9C8;border-radius:10px;padding:16px 20px;background:#FCF7F0;margin-bottom:24px">
+        <div style="font-size:12px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#C24E12;margin-bottom:5px">Read this first</div>
+        <p style="margin:0;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:15px;line-height:1.6;color:#33302A">Kwartaal provides guidance, estimates, and reminders. It is not tax advice, and Kwartaal does not file returns on your behalf. Figures are computed from published rates for the tax year shown, and Mijn Belastingdienst has the final word.</p>
+      </div>
+      <div style="display:grid;grid-template-columns:180px 1fr;gap:8px 28px">
+        <div style="font-size:12px;color:#A39A8B;padding-top:3px;font-feature-settings:'tnum'">1. Scope</div>
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#33302A">Placeholder body text — the template sets a 180px numbered margin rail, 14px/1.7 body, and 680px measure. Sections are anchored and linkable.</p>
+        <div style="font-size:12px;color:#A39A8B;padding-top:3px;font-feature-settings:'tnum'">2. What we store</div>
+        <p style="margin:0 0 14px;font-size:14px;line-height:1.7;color:#33302A">Placeholder body text. Definitions the reader might not know are dotted like <span style="font-weight:600;border-bottom:2px dotted #C24E12">verwerkersovereenkomst</span> — the glossary works here too.</p>
+        <div style="font-size:12px;color:#A39A8B;padding-top:3px;font-feature-settings:'tnum'">3. Your rights</div>
+        <p style="margin:0;font-size:14px;line-height:1.7;color:#33302A">Placeholder body text. The same shell serves Terms, the DPA, and the Impressum — only the rail entries and title change.</p>
+      </div>
+      <div style="margin-top:24px;padding-top:16px;border-top:1px solid #F0EDE5;display:flex;gap:16px;font-size:12.5px"><a href="#">Privacy</a><a href="#" style="color:#7A7266">Terms</a><a href="#" style="color:#7A7266">DPA</a><a href="#" style="color:#7A7266">Impressum</a></div>
+    </div>
+  </section>
+</main>
+
+<footer style="border-top:1px solid #E7E0D4;background:#F7F4EC">
+  <div style="max-width:1120px;margin:0 auto;padding:32px 40px;display:flex;align-items:center;gap:18px;font-size:12px;color:#A39A8B;flex-wrap:wrap">
+    <span style="display:flex;align-items:center;gap:8px"><span aria-hidden="true" style="width:14px;height:14px;background:#C24E12;border-radius:0 100% 0 0"></span><strong style="color:#1F1B16">Kwartaal</strong></span>
+    <span>© 2026 Kwartaal B.V. · EU data residency · privacy-first</span>
+    <span style="margin-left:auto;display:flex;gap:8px"><span style="font-weight:600;color:#1F1B16">EN</span><span aria-hidden="true">·</span><span>NL — coming soon</span></span>
+  </div>
+</footer>
+</div>
+
+</x-dc>
+</body>
+</html>

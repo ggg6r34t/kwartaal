@@ -1,0 +1,29 @@
+{
+  "name": "@kwartaal/db",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema": "./src/schema.ts",
+    "./auth-schema": "./src/auth-schema.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "generate": "drizzle-kit generate",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@kwartaal/core": "*",
+    "better-auth": "^1.6.23",
+    "drizzle-orm": "^0.45.2"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241218.0",
+    "drizzle-kit": "^0.31.10",
+    "typescript": "^5.7.2",
+    "vitest": "^3.2.7"
+  }
+}

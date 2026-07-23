@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;family=Newsreader:ital,wght@1,400;1,500&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#FAF8F3;color:#1F1B16;font-family:'Inter',system-ui,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:#C24E12}a:hover{color:#A8420E}
+:focus-visible{outline:2px solid #C24E12;outline-offset:2px;border-radius:4px}
+::selection{background:#F3DFCE}
+@keyframes stepIn{from{transform:translateY(10px);opacity:0}to{transform:translateY(0);opacity:1}}
+@media (prefers-reduced-motion: reduce){*{animation:none !important;transition:none !important}}
+</style>
+</helmet>
+<div style="display:flex;min-height:100vh">
+  <aside style="width:280px;flex:none;box-sizing:border-box;padding:36px 32px;border-right:1px solid #E7E0D4;display:flex;flex-direction:column">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:40px">
+      <div aria-hidden="true" style="width:26px;height:26px;box-sizing:border-box;border-radius:50%;border:1.5px solid #1F1B16;position:relative;background:#fff"><div style="position:absolute;top:2px;right:2px;width:10px;height:10px;background:#C24E12;border-radius:0 10px 0 0"></div></div>
+      <span style="font-size:16px;font-weight:700;letter-spacing:-0.01em">Kwartaal</span>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px">
+      <sc-for list="{{steps}}" as="s" hint-placeholder-count="6">
+        <button onClick="{{s.go}}" disabled="{{s.locked}}" style="display:flex;align-items:center;gap:12px;padding:9px 10px;border:none;border-radius:8px;text-align:left;font-family:inherit;cursor:{{s.cursor}};background:{{s.bg}}">
+          <sc-if value="{{s.done}}"><span style="width:20px;height:20px;flex:none;border-radius:6px;background:#5F7B5A;display:flex;align-items:center;justify-content:center"><svg width="9" height="9" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></span></sc-if>
+          <sc-if value="{{s.now}}"><span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid #C24E12;display:flex;align-items:center;justify-content:center"><span style="width:7px;height:7px;border-radius:50%;background:#C24E12"></span></span></sc-if>
+          <sc-if value="{{s.todo}}"><span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px dashed #D8D0C2"></span></sc-if>
+          <span style="font-size:13.5px;font-weight:600;color:{{s.fg}}">{{s.label}}</span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="margin-top:auto;font-size:12px;line-height:1.6;color:#A39A8B">About 5 minutes. Everything can be changed later in Settings.</div>
+  </aside>
+  <main style="flex:1;display:flex;align-items:flex-start;justify-content:center;padding:64px 48px;box-sizing:border-box">
+    <div style="width:100%;max-width:640px">
+
+      <sc-if value="{{is0}}" hint-placeholder-val="{{ true }}">
+        <div style="animation:stepIn 260ms cubic-bezier(0.2,0.7,0.3,1) both">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#C24E12;margin-bottom:14px">Welcome</div>
+          <h1 style="margin:0 0 14px;font-size:34px;font-weight:600;letter-spacing:-0.02em;line-height:1.2;text-wrap:pretty">Taxes become four dates a year.</h1>
+          <p style="margin:0 0 22px;font-size:15px;line-height:1.6;color:#7A7266;max-width:520px">Five questions set up your tax year. Kwartaal then guides, estimates and reminds — it never files for you. Mijn Belastingdienst or your bookkeeper has the final word.</p>
+          <div style="display:flex;gap:10px;margin-bottom:28px">
+            <div style="flex:1;background:#fff;border:1px solid #E7E0D4;border-radius:10px;padding:14px 16px"><div style="font-size:20px;font-weight:600;font-feature-settings:'tnum'">4×</div><div style="font-size:12px;color:#7A7266;margin-top:2px">quarterly btw, ~25 min each</div></div>
+            <div style="flex:1;background:#fff;border:1px solid #E7E0D4;border-radius:10px;padding:14px 16px"><div style="font-size:20px;font-weight:600;font-feature-settings:'tnum'">1×</div><div style="font-size:12px;color:#7A7266;margin-top:2px">annual return, guided in March</div></div>
+            <div style="flex:1;background:#fff;border:1px solid #E7E0D4;border-radius:10px;padding:14px 16px"><div style="font-size:20px;font-weight:600;font-feature-settings:'tnum'">0</div><div style="font-size:12px;color:#7A7266;margin-top:2px">jargon left unexplained</div></div>
+          </div>
+          <button onClick="{{next}}" style="background:#C24E12;color:#fff;border:none;border-radius:8px;padding:13px 20px;font-family:inherit;font-size:14.5px;font-weight:600;cursor:pointer" style-hover="background:#A8420E">Set up my tax year</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{is1}}" hint-placeholder-val="{{ false }}">
+        <div style="animation:stepIn 260ms cubic-bezier(0.2,0.7,0.3,1) both">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:14px">Step 1 of 5 · Your business</div>
+          <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">What did you register at the KVK?</h1>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.55;color:#7A7266">This decides which taxes apply and how you log in to file.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:20px">
+            <button onClick="{{pickEZ}}" style="display:flex;align-items:flex-start;gap:14px;text-align:left;background:#fff;border:1px solid {{ezBorder}};border-radius:12px;padding:18px 20px;font-family:inherit;cursor:pointer" style-hover="border-color:#C9C0B0">
+              <span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid {{ezDot}};display:flex;align-items:center;justify-content:center;margin-top:1px"><sc-if value="{{isEZ}}"><span style="width:9px;height:9px;border-radius:50%;background:#C24E12"></span></sc-if></span>
+              <span><span style="display:block;font-size:15px;font-weight:600">Eenmanszaak</span><span style="display:block;font-size:12.5px;color:#7A7266;margin-top:3px;line-height:1.5">Sole proprietorship — you and the business are one. Income tax on profit, btw per quarter. Log in with DigiD.</span></span>
+            </button>
+            <button onClick="{{pickVOF}}" style="display:flex;align-items:flex-start;gap:14px;text-align:left;background:#fff;border:1px solid {{vofBorder}};border-radius:12px;padding:18px 20px;font-family:inherit;cursor:pointer" style-hover="border-color:#C9C0B0">
+              <span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid {{vofDot}};display:flex;align-items:center;justify-content:center;margin-top:1px"><sc-if value="{{isVOF}}"><span style="width:9px;height:9px;border-radius:50%;background:#C24E12"></span></sc-if></span>
+              <span><span style="display:block;font-size:15px;font-weight:600">VOF</span><span style="display:block;font-size:12.5px;color:#7A7266;margin-top:3px;line-height:1.5">Partnership — each partner files their own income tax share. Filing needs eHerkenning.</span></span>
+            </button>
+            <button onClick="{{pickBV}}" style="display:flex;align-items:flex-start;gap:14px;text-align:left;background:#fff;border:1px solid {{bvBorder}};border-radius:12px;padding:18px 20px;font-family:inherit;cursor:pointer" style-hover="border-color:#C9C0B0">
+              <span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid {{bvDot}};display:flex;align-items:center;justify-content:center;margin-top:1px"><sc-if value="{{isBV}}"><span style="width:9px;height:9px;border-radius:50%;background:#C24E12"></span></sc-if></span>
+              <span><span style="display:block;font-size:15px;font-weight:600">BV</span><span style="display:block;font-size:12.5px;color:#7A7266;margin-top:3px;line-height:1.5">Private limited company — corporate tax, payroll for yourself. Kwartaal covers the basics; a bookkeeper is strongly advised.</span></span>
+            </button>
+          </div>
+          <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:16px 20px;margin-bottom:24px">
+            <label for="ob-year" style="display:block;font-size:13px;font-weight:600;margin-bottom:8px">Which year did you register?</label>
+            <div style="display:flex;gap:6px">
+              <button onClick="{{yr2024}}" style="padding:9px 14px;border:1px solid #D8D0C2;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:{{y24bg}};color:{{y24fg}}">2024</button>
+              <button onClick="{{yr2025}}" style="padding:9px 14px;border:1px solid #D8D0C2;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:{{y25bg}};color:{{y25fg}}">2025</button>
+              <button onClick="{{yr2026}}" style="padding:9px 14px;border:1px solid #D8D0C2;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:{{y26bg}};color:{{y26fg}}">2026</button>
+              <button onClick="{{yrOlder}}" style="padding:9px 14px;border:1px solid #D8D0C2;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:{{yObg}};color:{{yOfg}}">Earlier</button>
+            </div>
+            <sc-if value="{{starterHint}}"><p style="margin:12px 0 0;font-size:12.5px;line-height:1.5;color:#5F7B5A;font-weight:600">✓ Within your first 5 years — the startersaftrek (extra €2.123 deduction) may apply up to 3 times.</p></sc-if>
+          </div>
+          <sc-if value="{{explainOn}}"><p style="margin:0 0 24px;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:15px;line-height:1.5;color:#7A7266"><span style="color:#C24E12">※</span>&nbsp; We ask the KVK's words, not ours — the letters you'll receive use exactly these terms.</p></sc-if>
+          <div style="display:flex;gap:10px">
+            <button onClick="{{back}}" style="background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Back</button>
+            <button onClick="{{next}}" style="background:#C24E12;color:#fff;border:none;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#A8420E">Continue</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{is2}}" hint-placeholder-val="{{ false }}">
+        <div style="animation:stepIn 260ms cubic-bezier(0.2,0.7,0.3,1) both">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:14px">Step 2 of 5 · Btw</div>
+          <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">Roughly how much will you invoice this year?</h1>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.55;color:#7A7266">A rough guess is fine. It decides one thing: whether the small-business scheme (KOR) is worth considering.</p>
+          <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:22px 24px;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+              <span style="font-size:13px;font-weight:600;color:#7A7266">Expected turnover (ex btw)</span>
+              <span style="font-size:22px;font-weight:600;font-feature-settings:'tnum'">{{turnLabel}}</span>
+            </div>
+            <input type="range" min="0" max="100000" step="2500" value="{{turnover}}" onChange="{{setTurnover}}" aria-label="Expected turnover" style="width:100%;accent-color:#C24E12">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#A39A8B;font-feature-settings:'tnum'"><span>€0</span><span style="color:#C24E12;font-weight:600">€20.000 — KOR limit</span><span>€100.000+</span></div>
+          </div>
+          <sc-if value="{{korEligible}}">
+            <div style="background:#fff;border:1px solid #E7C9B4;border-radius:12px;padding:20px 24px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#C24E12;margin-bottom:8px">You could use the KOR</div>
+              <p style="margin:0 0 14px;font-size:13.5px;line-height:1.6;color:#1F1B16">Under €20.000 you can opt out of btw entirely: no charging it, no quarterly returns. The trade: you can't reclaim the btw on your own purchases.</p>
+              <div style="display:flex;gap:10px">
+                <button onClick="{{korYes}}" style="padding:10px 15px;border:1px solid #D8D0C2;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:{{korYbg}};color:{{korYfg}}">Use the KOR</button>
+                <button onClick="{{korNo}}" style="padding:10px 15px;border:1px solid #D8D0C2;border-radius:8px;font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;background:{{korNbg}};color:{{korNfg}}">File quarterly anyway</button>
+              </div>
+            </div>
+          </sc-if>
+          <sc-if value="{{korNotEligible}}">
+            <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:20px 24px;margin-bottom:14px">
+              <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:8px">Quarterly btw it is</div>
+              <p style="margin:0;font-size:13.5px;line-height:1.6;color:#1F1B16">Above €20.000 the KOR doesn't apply. You'll charge btw on every invoice and file four short returns a year — Kwartaal turns each one into a ~25-minute checklist.</p>
+            </div>
+          </sc-if>
+          <sc-if value="{{explainOn}}"><p style="margin:0 0 24px;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:15px;line-height:1.5;color:#7A7266"><span style="color:#C24E12">※</span>&nbsp; Kwartaal watches your rolling turnover either way — cross €18.000 on the KOR and we warn you before the limit does.</p></sc-if>
+          <div style="display:flex;gap:10px">
+            <button onClick="{{back}}" style="background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Back</button>
+            <button onClick="{{next}}" style="background:#C24E12;color:#fff;border:none;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#A8420E">Continue</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{is3}}" hint-placeholder-val="{{ false }}">
+        <div style="animation:stepIn 260ms cubic-bezier(0.2,0.7,0.3,1) both">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:14px">Step 3 of 5 · Money</div>
+          <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">When an invoice is paid, how much should never feel like yours?</h1>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.55;color:#7A7266">The btw goes aside exactly. On top of that, a slice of every payment covers your income tax. Pick your reserve — 30% is a safe default.</p>
+          <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:22px 24px;margin-bottom:14px">
+            <div style="display:flex;justify-content:space-between;font-size:12px;font-weight:600;color:#7A7266;margin-bottom:8px"><span>Income-tax reserve</span><span style="color:#1F1B16;font-size:15px;font-feature-settings:'tnum'">{{resLabel}}</span></div>
+            <input type="range" min="25" max="35" step="1" value="{{reserve}}" onChange="{{setReserve}}" aria-label="Income tax reserve percentage" style="width:100%;accent-color:#C24E12">
+            <div style="display:flex;justify-content:space-between;font-size:11px;color:#A39A8B"><span>25% — lean</span><span>30% — default</span><span>35% — extra margin</span></div>
+            <div style="margin-top:18px">
+              <div style="font-size:11px;font-weight:600;letter-spacing:0.07em;text-transform:uppercase;color:#A39A8B;margin-bottom:8px;font-feature-settings:'tnum'">A €2.420 invoice (incl. 21% btw) would split into</div>
+              <div style="display:flex;height:38px;border-radius:8px;overflow:hidden;border:1px solid #E7E0D4">
+                <div style="width:{{demoYoursPct}}%;background:#C9BCA4"></div>
+                <div style="width:17.4%;background:repeating-linear-gradient(135deg, rgba(194,78,18,0.5) 0px, rgba(194,78,18,0.5) 4px, rgba(194,78,18,0.2) 4px, rgba(194,78,18,0.2) 8px)"></div>
+                <div style="width:{{demoResPct}}%;background:#EED9A8"></div>
+              </div>
+              <div style="display:flex;gap:22px;margin-top:10px;font-feature-settings:'tnum';flex-wrap:wrap">
+                <span style="font-size:12.5px;color:#7A7266"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#C9BCA4;margin-right:6px"></span>Yours <strong style="color:#1F1B16">{{demoYours}}</strong></span>
+                <span style="font-size:12.5px;color:#7A7266"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:repeating-linear-gradient(135deg, rgba(194,78,18,0.5) 0px, rgba(194,78,18,0.5) 3px, rgba(194,78,18,0.2) 3px, rgba(194,78,18,0.2) 6px);margin-right:6px"></span>Btw — exact <strong style="color:#1F1B16">€420,00</strong></span>
+                <span style="font-size:12.5px;color:#7A7266"><span aria-hidden="true" style="display:inline-block;width:10px;height:10px;border-radius:3px;background:#EED9A8;margin-right:6px"></span>Tax reserve <strong style="color:#1F1B16">{{demoRes}}</strong></span>
+              </div>
+            </div>
+          </div>
+          <sc-if value="{{explainOn}}"><p style="margin:0 0 24px;font-family:'Newsreader',Georgia,serif;font-style:italic;font-size:15px;line-height:1.5;color:#7A7266"><span style="color:#C24E12">※</span>&nbsp; The hatched slice is btw: it passes through your account, but it was never yours. Kwartaal hatches it everywhere.</p></sc-if>
+          <div style="display:flex;gap:10px">
+            <button onClick="{{back}}" style="background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Back</button>
+            <button onClick="{{next}}" style="background:#C24E12;color:#fff;border:none;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#A8420E">Continue</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{is4}}" hint-placeholder-val="{{ false }}">
+        <div style="animation:stepIn 260ms cubic-bezier(0.2,0.7,0.3,1) both">
+          <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:14px">Step 4 of 5 · Reminders</div>
+          <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">How loudly should we remind you?</h1>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.55;color:#7A7266">Deadlines only — never marketing. Missing a btw deadline risks a fine, so we default to persistent.</p>
+          <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:24px">
+            <button onClick="{{remCalm}}" style="display:flex;align-items:flex-start;gap:14px;text-align:left;background:#fff;border:1px solid {{calmBorder}};border-radius:12px;padding:18px 20px;font-family:inherit;cursor:pointer" style-hover="border-color:#C9C0B0">
+              <span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid {{calmDot}};display:flex;align-items:center;justify-content:center;margin-top:1px"><sc-if value="{{isCalm}}"><span style="width:9px;height:9px;border-radius:50%;background:#C24E12"></span></sc-if></span>
+              <span><span style="display:block;font-size:15px;font-weight:600">Calm</span><span style="display:block;font-size:12.5px;color:#7A7266;margin-top:3px">Email only — 14 and 3 days before each deadline.</span></span>
+            </button>
+            <button onClick="{{remPersist}}" style="display:flex;align-items:flex-start;gap:14px;text-align:left;background:#fff;border:1px solid {{persistBorder}};border-radius:12px;padding:18px 20px;font-family:inherit;cursor:pointer" style-hover="border-color:#C9C0B0">
+              <span style="width:20px;height:20px;flex:none;box-sizing:border-box;border-radius:50%;border:2px solid {{persistDot}};display:flex;align-items:center;justify-content:center;margin-top:1px"><sc-if value="{{isPersist}}"><span style="width:9px;height:9px;border-radius:50%;background:#C24E12"></span></sc-if></span>
+              <span><span style="display:block;font-size:15px;font-weight:600">Persistent <span style="font-size:11px;font-weight:600;color:#C24E12;margin-left:6px">recommended</span></span><span style="display:block;font-size:12.5px;color:#7A7266;margin-top:3px">Email + push — 14, 7 and 1 day before, and daily once overdue.</span></span>
+            </button>
+          </div>
+          <div style="display:flex;gap:10px">
+            <button onClick="{{back}}" style="background:none;color:#1F1B16;border:1px solid #D8D0C2;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#F1ECE2">Back</button>
+            <button onClick="{{next}}" style="background:#C24E12;color:#fff;border:none;border-radius:8px;padding:12px 18px;font-family:inherit;font-size:14px;font-weight:600;cursor:pointer" style-hover="background:#A8420E">Continue</button>
+          </div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{is5}}" hint-placeholder-val="{{ false }}">
+        <div style="animation:stepIn 260ms cubic-bezier(0.2,0.7,0.3,1) both">
+          <div style="width:44px;height:44px;border-radius:12px;background:#5F7B5A;display:flex;align-items:center;justify-content:center;margin-bottom:18px"><svg width="18" height="18" viewBox="0 0 12 12" aria-hidden="true"><path d="M2 6.5 5 9.5 10 3" stroke="#fff" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"></path></svg></div>
+          <h1 style="margin:0 0 8px;font-size:28px;font-weight:600;letter-spacing:-0.02em">Your tax year is set up.</h1>
+          <p style="margin:0 0 24px;font-size:14px;line-height:1.55;color:#7A7266">Here's your 2026 — {{summaryLine}}</p>
+          <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;padding:24px 26px;margin-bottom:14px">
+            <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:#A39A8B;margin-bottom:18px">2026 at a glance</div>
+            <div style="position:relative">
+              <div aria-hidden="true" style="position:absolute;top:13px;left:36px;right:36px;height:2px;background:#EAE4D8"></div>
+              <div style="display:flex;justify-content:space-between;position:relative">
+                <sc-for list="{{previewQuarters}}" as="q" hint-placeholder-count="5">
+                  <div style="display:flex;flex-direction:column;align-items:center;gap:8px;min-width:88px">
+                    <div style="width:28px;height:28px;box-sizing:border-box;border-radius:50%;border:2px dashed #D8D0C2;background:#FAF8F3;display:flex;align-items:center;justify-content:center"><sc-if value="{{q.first}}"><span style="width:9px;height:9px;border-radius:50%;background:#C24E12"></span></sc-if></div>
+                    <div style="text-align:center"><div style="font-size:13px;font-weight:600">{{q.label}}</div><div style="font-size:12px;color:#7A7266;font-feature-settings:'tnum'">{{q.due}}</div></div>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </div>
+          <div style="background:#fff;border:1px solid #E7E0D4;border-radius:12px;overflow:hidden;margin-bottom:24px;font-size:13.5px">
+            <div style="display:flex;justify-content:space-between;padding:13px 20px;border-bottom:1px solid #F0EDE5"><span style="font-weight:600">Legal form</span><span style="color:#7A7266">{{sumForm}}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:13px 20px;border-bottom:1px solid #F0EDE5"><span style="font-weight:600">Btw</span><span style="color:#7A7266">{{sumKor}}</span></div>
+            <div style="display:flex;justify-content:space-between;padding:13px 20px;border-bottom:1px solid #F0EDE5"><span style="font-weight:600">Income-tax reserve</span><span style="color:#7A7266;font-feature-settings:'tnum'">{{resLabel}} of every payment</span></div>
+            <div style="display:flex;justify-content:space-between;padding:13px 20px"><span style="font-weight:600">Reminders</span><span style="color:#7A7266">{{sumRem}}</span></div>
+          </div>
+          <div style="display:flex;gap:10px;align-items:center">
+            <a href="Kwartaal.dc.html" style="background:#C24E12;color:#fff;border-radius:8px;padding:13px 20px;font-size:14.5px;font-weight:600;text-decoration:none" style-hover="background:#A8420E">Open Today</a>
+            <button onClick="{{back}}" style="background:none;border:none;padding:0;font-family:inherit;font-size:13px;font-weight:600;color:#C24E12;cursor:pointer" style-hover="color:#A8420E">Change something</button>
+          </div>
+        </div>
+      </sc-if>
+
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;explainMode&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;,&quot;section&quot;:&quot;Learn layer&quot;},&quot;startAtStep&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;default&quot;:0,&quot;min&quot;:0,&quot;max&quot;:5,&quot;step&quot;:1,&quot;tsType&quot;:&quot;number&quot;,&quot;section&quot;:&quot;Demo state&quot;}}">
+class Component extends DCLogic {
+  state = { step: 0, form: 'ez', year: 2025, turnover: 45000, kor: null, reserve: 30, reminders: 'persist' };
+  renderVals() {
+    const s = this.state, set = (o) => this.setState(o);
+    const startAt = this.props.startAtStep;
+    if (!this._jumped && typeof startAt === 'number') { this._jumped = true; this.state.step = Math.max(0, Math.min(5, startAt)); }
+    const step = this.state.step;
+    const labels = ['Welcome', 'Your business', 'Btw', 'Money', 'Reminders', 'Done'];
+    const steps = labels.map((label, i) => ({
+      label, done: i < step, now: i === step, todo: i > step,
+      locked: i > step, cursor: i > step ? 'default' : 'pointer',
+      bg: i === step ? '#F1ECE2' : 'transparent',
+      fg: i > step ? '#A39A8B' : '#1F1B16',
+      go: () => { if (i <= this.state.step) set({ step: i }); }
+    }));
+    const fmt = (n) => '\u20ac' + n.toLocaleString('nl-NL');
+    const korEligible = s.turnover <= 20000;
+    const sel = (on) => on ? '#C24E12' : '#E7E0D4';
+    const dot = (on) => on ? '#C24E12' : '#C9C0B0';
+    const chipBg = (on) => on ? '#1F1B16' : 'transparent';
+    const chipFg = (on) => on ? '#FFFFFF' : '#1F1B16';
+    const total = 2420, btw = 420, ex = 2000;
+    const res = ex * s.reserve / 100, yours = ex - res;
+    const fmt2 = (n) => '\u20ac' + n.toLocaleString('nl-NL', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    const formName = { ez: 'eenmanszaak', vof: 'VOF', bv: 'BV' }[s.form];
+    const usesKor = korEligible && s.kor !== false;
+    return {
+      steps, explainOn: this.props.explainMode ?? true,
+      is0: step === 0, is1: step === 1, is2: step === 2, is3: step === 3, is4: step === 4, is5: step === 5,
+      next: () => set({ step: Math.min(5, this.state.step + 1) }),
+      back: () => set({ step: Math.max(0, this.state.step - 1) }),
+      isEZ: s.form === 'ez', isVOF: s.form === 'vof', isBV: s.form === 'bv',
+      ezBorder: sel(s.form === 'ez'), vofBorder: sel(s.form === 'vof'), bvBorder: sel(s.form === 'bv'),
+      ezDot: dot(s.form === 'ez'), vofDot: dot(s.form === 'vof'), bvDot: dot(s.form === 'bv'),
+      pickEZ: () => set({ form: 'ez' }), pickVOF: () => set({ form: 'vof' }), pickBV: () => set({ form: 'bv' }),
+      y24bg: chipBg(s.year === 2024), y24fg: chipFg(s.year === 2024),
+      y25bg: chipBg(s.year === 2025), y25fg: chipFg(s.year === 2025),
+      y26bg: chipBg(s.year === 2026), y26fg: chipFg(s.year === 2026),
+      yObg: chipBg(s.year === 0), yOfg: chipFg(s.year === 0),
+      yr2024: () => set({ year: 2024 }), yr2025: () => set({ year: 2025 }), yr2026: () => set({ year: 2026 }), yrOlder: () => set({ year: 0 }),
+      starterHint: s.year >= 2022 && s.year !== 0,
+      turnover: s.turnover, setTurnover: (e) => set({ turnover: Number(e.target.value) }),
+      turnLabel: s.turnover >= 100000 ? fmt(100000) + '+' : fmt(s.turnover),
+      korEligible, korNotEligible: !korEligible,
+      korYbg: chipBg(s.kor === true), korYfg: chipFg(s.kor === true),
+      korNbg: chipBg(s.kor === false), korNfg: chipFg(s.kor === false),
+      korYes: () => set({ kor: true }), korNo: () => set({ kor: false }),
+      reserve: s.reserve, resLabel: s.reserve + '%', setReserve: (e) => set({ reserve: Number(e.target.value) }),
+      demoYours: fmt2(yours), demoRes: fmt2(res),
+      demoYoursPct: yours / total * 100, demoResPct: res / total * 100,
+      isCalm: s.reminders === 'calm', isPersist: s.reminders === 'persist',
+      calmBorder: sel(s.reminders === 'calm'), persistBorder: sel(s.reminders === 'persist'),
+      calmDot: dot(s.reminders === 'calm'), persistDot: dot(s.reminders === 'persist'),
+      remCalm: () => set({ reminders: 'calm' }), remPersist: () => set({ reminders: 'persist' }),
+      previewQuarters: usesKor
+        ? [{ label: 'Turnover watch', due: 'all year', first: true }, { label: 'IB 2026', due: '1 May \u201927', first: false }]
+        : [{ label: 'Q1', due: '30 Apr', first: true }, { label: 'Q2', due: '31 Jul', first: false }, { label: 'Q3', due: '31 Oct', first: false }, { label: 'Q4', due: '31 Jan \u201927', first: false }, { label: 'IB 2026', due: '1 May \u201927', first: false }],
+      summaryLine: usesKor ? 'one annual return, and we watch the KOR limit for you.' : 'four quarterly drawers and one annual return.',
+      sumForm: formName + (s.year ? ' \u00b7 since ' + s.year : ''),
+      sumKor: usesKor ? 'KOR \u2014 no quarterly returns' : 'Quarterly btw-aangifte',
+      sumRem: s.reminders === 'persist' ? 'Email + push \u00b7 14, 7 and 1 day before' : 'Email \u00b7 14 and 3 days before'
+    };
+  }
+}
+</script>
+</body>
+</html>

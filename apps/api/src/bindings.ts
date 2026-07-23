@@ -1,11 +1,11 @@
 import type { Database, TenantDb } from "@kwartaal/db";
-import type { Role } from "@kwartaal/core";
+import type { ReminderStage, Role } from "@kwartaal/core";
 
 export interface ReminderQueueMessage {
   kind: "reminder";
   orgId: string;
   deadlineId: string;
-  stage: "t14" | "t7" | "t2" | "day" | "overdue";
+  stage: ReminderStage;
 }
 
 export interface ExportQueueMessage {

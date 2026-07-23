@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deadlinesForYear } from "./deadlines";
+import { deadlinesForYear, quarterForDate, quarterPeriodEnd } from "./deadlines";
 
 describe("deadlinesForYear — btw quarters", () => {
   it("computes all four quarterly due dates for a non-KOR org", () => {
@@ -69,5 +69,31 @@ describe("deadlinesForYear — voorlopige aanslag", () => {
       (d) => d.kind === "voorlopige_aanslag" && d.dueDate.startsWith("2028-02"),
     );
     expect(feb!.dueDate).toBe("2028-02-29");
+  });
+});
+
+describe("quarterPeriodEnd", () => {
+  it("returns the last day of each quarter's work period, not a filing due date", () => {
+    expect(quarterPeriodEnd(2026, 1)).toBe("2026-03-31");
+    expect(quarterPeriodEnd(2026, 2)).toBe("2026-06-30");
+    expect(quarterPeriodEnd(2026, 3)).toBe("2026-09-30");
+    expect(quarterPeriodEnd(2026, 4)).toBe("2026-12-31");
+  });
+
+  it("handles leap-year February correctly via Q1", () => {
+    expect(quarterPeriodEnd(2028, 1)).toBe("2028-03-31");
+  });
+});
+
+describe("quarterForDate", () => {
+  it("maps every month to its quarter", () => {
+    expect(quarterForDate("2026-01-15")).toBe(1);
+    expect(quarterForDate("2026-03-31")).toBe(1);
+    expect(quarterForDate("2026-04-01")).toBe(2);
+    expect(quarterForDate("2026-06-30")).toBe(2);
+    expect(quarterForDate("2026-07-01")).toBe(3);
+    expect(quarterForDate("2026-09-30")).toBe(3);
+    expect(quarterForDate("2026-10-01")).toBe(4);
+    expect(quarterForDate("2026-12-31")).toBe(4);
   });
 });

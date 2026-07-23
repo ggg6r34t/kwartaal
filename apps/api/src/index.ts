@@ -16,6 +16,10 @@ import { reportError } from "./lib/sentry";
 import { health } from "./routes/health";
 import { orgs } from "./routes/orgs";
 import { calculator } from "./routes/calculator";
+import { onboarding } from "./routes/onboarding";
+import { quarters } from "./routes/quarters";
+import { deadlines } from "./routes/deadlines";
+import { glossary } from "./routes/glossary";
 import { handleQueue } from "./queue";
 import { handleScheduled } from "./scheduled";
 
@@ -74,6 +78,18 @@ app.route("/calculator", calculator);
 // Authenticated: CSRF guard then session gate, per-route RBAC inside modules.
 app.use("/orgs/*", csrfGuard, requireSession);
 app.route("/orgs", orgs);
+
+app.use("/onboarding/*", csrfGuard, requireSession);
+app.route("/onboarding", onboarding);
+
+app.use("/quarters/*", csrfGuard, requireSession);
+app.route("/quarters", quarters);
+
+app.use("/deadlines/*", csrfGuard, requireSession);
+app.route("/deadlines", deadlines);
+
+app.use("/glossary/*", csrfGuard, requireSession);
+app.route("/glossary", glossary);
 
 app.notFound((c) => c.json({ error: "not-found" }, 404));
 

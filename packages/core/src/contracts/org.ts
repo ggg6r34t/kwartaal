@@ -8,6 +8,9 @@ export const orgSchema = z.object({
 });
 export type Org = z.infer<typeof orgSchema>;
 
+export const reminderCadenceSchema = z.enum(["calm", "persistent"]);
+export type ReminderCadence = z.infer<typeof reminderCadenceSchema>;
+
 export const businessProfileSchema = z.object({
   id: z.string(),
   orgId: z.string(),
@@ -18,6 +21,8 @@ export const businessProfileSchema = z.object({
   hasSalariedJob: z.boolean(),
   startersaftrekUsedCount: z.number().int().min(0).max(3),
   defaultSetAsideRateBps: z.number().int().min(0).max(10000),
+  reminderCadence: reminderCadenceSchema,
+  onboardedAt: z.number().int().nullable(),
   firstQuarterClosedAt: z.number().int().nullable(),
 });
 export type BusinessProfile = z.infer<typeof businessProfileSchema>;

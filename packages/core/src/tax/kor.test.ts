@@ -15,15 +15,15 @@ describe("korRollingTurnover", () => {
     expect(result.rollingTurnoverCents).toBe(800000);
   });
 
-  it("does not cross the warning threshold below 80%", () => {
-    const lines = [{ amountExVatCents: 1_400_000, date: "2026-05-01" }]; // 70%
+  it("does not cross the warning threshold below €18.000 (90%)", () => {
+    const lines = [{ amountExVatCents: 1_700_000, date: "2026-05-01" }]; // 85%
     const result = korRollingTurnover(lines, 2026, LIMIT);
     expect(result.crossedWarningThreshold).toBe(false);
     expect(result.crossedLimit).toBe(false);
   });
 
-  it("flags crossedWarningThreshold at exactly 80%", () => {
-    const lines = [{ amountExVatCents: 1_600_000, date: "2026-05-01" }]; // exactly 80%
+  it("flags crossedWarningThreshold at exactly €18.000 (docs/design's onboarding copy)", () => {
+    const lines = [{ amountExVatCents: 1_800_000, date: "2026-05-01" }]; // exactly 90%
     const result = korRollingTurnover(lines, 2026, LIMIT);
     expect(result.crossedWarningThreshold).toBe(true);
     expect(result.crossedLimit).toBe(false);

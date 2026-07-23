@@ -43,3 +43,21 @@ export function deadlinesForYear(
 
   return deadlines;
 }
+
+/**
+ * The last calendar day of a quarter's WORK PERIOD (Q1 ends 31 Mar, ...,
+ * Q4 ends 31 Dec) — distinct from that quarter's filing due date. Used at
+ * onboarding to decide which quarters happened before the org started
+ * using Kwartaal (their period has already ended) and so default to
+ * `handled_elsewhere`, versus the quarter currently in progress.
+ */
+export function quarterPeriodEnd(year: number, quarter: 1 | 2 | 3 | 4): string {
+  const endMonth = quarter * 3;
+  return `${year}-${pad2(endMonth)}-${pad2(lastDayOfMonth(year, endMonth))}`;
+}
+
+/** Which quarter (1-4) a given ISO calendar date falls within. */
+export function quarterForDate(dateIso: string): 1 | 2 | 3 | 4 {
+  const month = Number(dateIso.slice(5, 7));
+  return Math.ceil(month / 3) as 1 | 2 | 3 | 4;
+}

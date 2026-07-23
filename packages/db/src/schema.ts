@@ -100,6 +100,17 @@ export const businessProfiles = sqliteTable(
       .default(false),
     startersaftrekUsedCount: integer("startersaftrek_used_count").notNull().default(0),
     defaultSetAsideRateBps: integer("default_set_aside_rate_bps").notNull().default(3000),
+    // reminderCadence: "calm" (email, T-14/T-2) | "persistent" (email, T-14/T-7/day-of/weekly-overdue)
+    // Onboarding step 4's choice. Both cadences ride the same 5 defined
+    // ReminderLog stages (t14|t7|t2|day|overdue) — cadence selects a subset,
+    // it doesn't add new stages. No push channel yet (no infra for it); the
+    // design's "email + push" is aspirational, see PROGRESS.md.
+    reminderCadence: text("reminder_cadence").notNull().default("persistent"),
+    // Set once by POST /onboarding/complete. null = the app should route to
+    // the onboarding wizard instead of Today. Distinct from
+    // kvkRegisteredAt (which can itself be null for "registered earlier,
+    // exact year not tracked") so onboarding-complete has one unambiguous signal.
+    onboardedAt: instant("onboarded_at"),
     // Set once by the filed+paid transition on an in_progress quarter,
     // NEVER cleared. null = trial still open (locked decision #5).
     firstQuarterClosedAt: instant("first_quarter_closed_at"),

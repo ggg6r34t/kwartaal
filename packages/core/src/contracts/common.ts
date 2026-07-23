@@ -27,8 +27,9 @@ export const quarterStatusSchema = z.enum([
   "handled_elsewhere",
 ]);
 
-export const importSourceSchema = z.enum([
-  "manual",
+/** Matches the DB's two-column split: how a line got here, and (if imported) which adapter recognized it. */
+export const lineSourceSchema = z.enum(["manual", "import"]);
+export const importAdapterSchema = z.enum([
   "moneybird",
   "declair",
   "eboekhouden",

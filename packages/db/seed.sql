@@ -53,10 +53,12 @@ INSERT INTO users (id, org_id, auth_user_id, role, status, created_at, updated_a
 INSERT INTO business_profiles (
   id, org_id, legal_form, kvk_registered_at, kor_opt_in, kor_since,
   has_salaried_job, startersaftrek_used_count, default_set_aside_rate_bps,
+  reminder_cadence, onboarded_at,
   first_quarter_closed_at, created_at, updated_at
 ) VALUES (
   'bprf_maya', 'org_maya', 'eenmanszaak', '2026-01-15', 0, NULL,
   0, 1, 3000,
+  'persistent', unixepoch('2026-03-01T09:05:00'), -- onboarded on signup day
   NULL, -- trial still open: Q3 (the first quarter worked in Kwartaal) hasn't closed yet
   unixepoch('2026-03-01T09:00:00'), unixepoch('2026-03-01T09:00:00')
 );

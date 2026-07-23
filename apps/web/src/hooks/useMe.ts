@@ -1,10 +1,16 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { MeResponse } from "@kwartaal/core";
 import { apiFetch } from "../lib/api";
 
 export function useMe() {
   const [me, setMe] = useState<MeResponse | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const refetch = useCallback(async () => {
+    const data = await apiFetch<MeResponse>("/orgs/me");
+    setMe(data);
+    return data;
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -20,5 +26,5 @@ export function useMe() {
     };
   }, []);
 
-  return { me, loading };
+  return { me, loading, refetch };
 }

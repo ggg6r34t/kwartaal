@@ -97,3 +97,24 @@ export interface DeadlineDef {
   dueDate: string; // ISO YYYY-MM-DD, Europe/Amsterdam calendar date
   quarter?: 1 | 2 | 3 | 4;
 }
+
+export interface KorProgress {
+  rollingTurnoverCents: number;
+  limitCents: number;
+  pctBps: number;
+  crossedWarningThreshold: boolean; // >= 80% of the limit
+  crossedLimit: boolean; // >= 100% of the limit
+}
+
+export interface WaterfallInput {
+  profitCents: number;
+  hoursLogged: number;
+  startersaftrekUsedCount: number;
+  kvkRegisteredAt: string | null; // ISO YYYY-MM-DD
+  asOfYear: number;
+}
+
+export interface DeadlineProfileInput {
+  korOptIn: boolean;
+  voorlopigeAanslag?: { active: boolean; startMonth: number } | null;
+}

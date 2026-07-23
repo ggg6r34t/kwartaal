@@ -15,6 +15,7 @@ import { logger } from "./lib/logger";
 import { reportError } from "./lib/sentry";
 import { health } from "./routes/health";
 import { orgs } from "./routes/orgs";
+import { calculator } from "./routes/calculator";
 import { handleQueue } from "./queue";
 import { handleScheduled } from "./scheduled";
 
@@ -56,6 +57,19 @@ app.on(["GET", "POST"], "/api/auth/*", (c) =>
 
 // Public, no auth:
 app.route("/health", health);
+
+// Public set-aside calculator (marketing site + Money screen preview) — no
+// auth, no DB write, but still rate-limited per non-negotiable: per-IP
+// fixed-window AND a daily cap, two independent layers on the same factory.
+app.use(
+  "/calculator/*",
+  rateLimit({ bucket: "calculator-window", limit: 30, windowSec: 60 }),
+);
+app.use(
+  "/calculator/*",
+  rateLimit({ bucket: "calculator-day", limit: 500, windowSec: 86400 }),
+);
+app.route("/calculator", calculator);
 
 // Authenticated: CSRF guard then session gate, per-route RBAC inside modules.
 app.use("/orgs/*", csrfGuard, requireSession);

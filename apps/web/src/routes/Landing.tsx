@@ -1,10 +1,13 @@
 import { Link } from "react-router-dom";
+import { SetAsideCalculator } from "../components/SetAsideCalculator";
 
 /**
  * Placeholder public landing page. The full marketing site (Home, Pricing,
  * How it works, the expat tax guide, the companion-positioning page, legal
  * pages) is pixel-ported from docs/design/Kwartaal Site *.dc.html in
- * Pillar 5 — Pillar 1 only needs enough of a public route to link to sign-in.
+ * Pillar 5 — Pillar 1 only needed enough of a public route to link to
+ * sign-in. Pillar 2 adds the functional set-aside calculator teaser (the
+ * Home hero's live-looking demo), wired to the real engine.
  */
 export function Landing() {
   return (
@@ -20,6 +23,7 @@ export function Landing() {
       >
         Sign in
       </Link>
+      <SetAsideCalculator />
     </main>
   );
 }

@@ -88,6 +88,16 @@ billing.post(
       subscription_data: { metadata: { orgId: tenantDb.orgId } },
       success_url: `${c.env.APP_ORIGIN}/app/settings?billing=success`,
       cancel_url: `${c.env.APP_ORIGIN}/app/settings?billing=cancelled`,
+      // Locked decision #5: "we dogfood the same EU VAT machinery we
+      // explain." Stripe Tax needs a customer location, hence requiring
+      // the address Checkout collects (the Customer above is created with
+      // none) and letting it write that address back onto the Customer.
+      // tax_id_collection lets a ZZP'er enter their own btw-id for
+      // reverse-charge, same as any other EU B2B Stripe purchase.
+      automatic_tax: { enabled: true },
+      billing_address_collection: "required",
+      customer_update: { address: "auto", name: "auto" },
+      tax_id_collection: { enabled: true },
     });
 
     await audit(tenantDb, {

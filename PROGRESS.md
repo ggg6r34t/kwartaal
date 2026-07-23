@@ -868,6 +868,47 @@ tsx` was left in place despite losing its only caller — it's a real,
    a dev-only tool behind a flag" note (Pillar 3) was never actually wired
    into Today.tsx in the first place, a pre-existing gap from Pillar 3 that
    this pillar didn't introduce and isn't the right place to fix.
+10. **Corrected after initial review — Stripe Tax was missing from the
+    checkout session.** The plan's line item is literally "Stripe products/
+    prices, Checkout, Customer Portal, **Stripe Tax config**, webhook
+    handler," and the first pass of this pillar built Checkout without it.
+    Fixed in `routes/billing.ts`: `automatic_tax: { enabled: true }`,
+    `billing_address_collection: "required"` (Stripe Tax needs a customer
+    location), `customer_update: { address: "auto", name: "auto" }` (the
+    Customer is created with no address, so Checkout must be allowed to
+    write the collected one back), and `tax_id_collection: { enabled: true
+}` (lets a ZZP'er enter their own btw-id for EU B2B reverse-charge).
+    Still blocked on the same missing Stripe account as everything else in
+    billing — Stripe Tax additionally requires the Tax product to be
+    enabled and jurisdictions registered in the Dashboard, which is only
+    possible once an account exists — but the application-side wiring is
+    now correct and will work the moment it does.
+11. **Stripe receipt-email copy (the deductibility/voorbelasting-5b line
+    the plan asks for) is Dashboard-side, not application code** — Stripe
+    generates subscription receipt emails from account-level Branding
+    settings and invoice line-item descriptions, not from anything this
+    pillar's API calls control directly. Blocked on the same missing
+    Stripe account; needs to be set once the account exists, and is worth
+    an explicit checklist item before launch rather than assumed-done.
+12. **Sitemap/prerender/OG-image tooling was built bespoke, not copied
+    from STACK-BLUEPRINT.md's existing pattern** — the blueprint documents
+    an almost-identical, already-audited setup (`scripts/generate-
+sitemap.mjs` run before the client build, a separate `vite build --ssr
+src/entry-prerender.tsx --outDir dist-server` + `scripts/prerender.mjs`
+    pass, and a standalone `og` script for `scripts/generate-og.mts` run
+    independently of `build` rather than every time). This pillar's
+    `entry-server.tsx` / `dist-ssr` / single `build-static.mjs` doing
+    prerender+sitemap+OG together is functionally equivalent — real
+    prerendered HTML, real sitemap, real OG PNGs, all live-verified — and
+    folding OG generation into every build (rather than a separate manual
+    step) is arguably safer for this project specifically (resvg is fast
+    enough here that "never stale" beats "not on every build"). But it's a
+    process deviation from the plan's explicit "(copy blueprint scripts)"
+    parenthetical and from STACK-BLUEPRINT §11(a)'s "copy nearly verbatim"
+    guidance, caught on a second look rather than during the original
+    build, and left as-is rather than risking a rename/restructure of
+    already-verified-working code for naming parity alone. Flagged here so
+    the deviation is a documented choice, not a silent one.
 
 ## Deferred to their pillar (not gaps — sequencing per the Build order)
 
@@ -895,12 +936,18 @@ tsx` was left in place despite losing its only caller — it's a real,
 
 ## External resources — still needed, none blocking Pillar 6
 
-- **Stripe test account** — still BLOCKED (Pillar 5 deviation #1). Every
-  billing code path is built and live-tested against its degraded
-  behavior, but Checkout/Portal/a-real-Stripe-webhook have never run
-  against an actual account. Needed before Pillar 6 can consider billing
-  hardened; ideally obtained and walked through by hand before Pillar 6
-  starts, not during it.
+- **Stripe test account** — still BLOCKED (Pillar 5 deviations #1, #10,
+  #11). Every billing code path is built and live-tested against its
+  degraded behavior, but Checkout/Portal/a-real-Stripe-webhook have never
+  run against an actual account. Once it exists, three things need doing,
+  not just testing: enable Stripe Tax and register jurisdictions
+  (application-side `automatic_tax` wiring is done, the account-level
+  config isn't), set receipt-email Branding copy to include the
+  deductibility/voorbelasting-5b line, and create the real monthly/annual
+  Prices to replace `STRIPE_PRICE_MONTHLY`/`STRIPE_PRICE_ANNUAL`'s
+  placeholders in `wrangler.toml`. Needed before Pillar 6 can consider
+  billing hardened; ideally obtained and walked through by hand before
+  Pillar 6 starts, not during it.
 - **Sentry DSN** — optional; degrades to structured console.error /
   `wrangler tail` today.
 - **Resend API key + verified domain** — dev-logs mode covers local testing;

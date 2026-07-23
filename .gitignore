@@ -21,3 +21,6 @@ e2e/blob-report/
 # right before a Pages deploy, then removed. See that directory's own
 # comments for why `wrangler pages deploy` needs it at exactly this path.
 apps/web/wrangler.toml
+# CI's gitleaks step writes its SARIF report here (repo root, working
+# directory) — never something to commit.
+results.sarif

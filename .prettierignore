@@ -8,3 +8,6 @@ docs
 KWARTAAL-BUILD-PLAN.md
 STACK-BLUEPRINT.md
 CLAUDE.md
+# CI's own gitleaks step writes this into the working directory before
+# format:check runs in the same job — not part of the repo.
+results.sarif

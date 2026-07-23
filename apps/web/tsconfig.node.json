@@ -1,6 +1,16 @@
 {
   "compilerOptions": {
     "composite": true,
+    // Composite projects can't disable emit (TS6310) — a referencing
+    // project's build needs this one's output to exist. Redirected into
+    // node_modules/ (already gitignored and prettierignored) instead of
+    // the default "next to vite.config.ts": a clean `tsc -b` — no cached
+    // .tsbuildinfo, exactly what CI always does — otherwise emits
+    // vite.config.js/.d.ts straight into apps/web/, which then fails
+    // `prettier --check .`. Locally this was masked all session by
+    // .tsbuildinfo considering the (unchanged) vite.config.ts already
+    // built.
+    "outDir": "./node_modules/.tsc-out",
     "target": "ES2022",
     "lib": ["ES2022", "DOM"],
     "module": "ESNext",

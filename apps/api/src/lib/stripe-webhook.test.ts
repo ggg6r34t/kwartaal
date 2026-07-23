@@ -5,9 +5,13 @@ import Stripe from "stripe";
  * Exercises the exact SDK call the route makes (constructEventAsync +
  * createSubtleCryptoProvider — the edge-runtime-safe pair, not the
  * Node-crypto sync constructEvent) against Stripe's own test-header
- * generator. No live Stripe account or DB needed — this is pure crypto,
- * and it's the one piece of the webhook path that doesn't require the D1
- * test harness the rest of the route depends on (see PROGRESS.md).
+ * generator. Runs under real workerd since Pillar 6 (vitest.config.ts) —
+ * that's what caught a real bug in this test: `generateTestHeaderString`'s
+ * sync HMAC path only exists because Node's SubtleCryptoProvider has a
+ * sync fallback; real workerd's `crypto.subtle` is async-only, so the sync
+ * helper throws there and `generateTestHeaderStringAsync` is required —
+ * the equivalent of what production already used `constructEventAsync`
+ * for. No live Stripe account needed — this is pure crypto.
  */
 describe("Stripe webhook signature verification", () => {
   const secret = "whsec_test_secret_for_kwartaal";
@@ -18,7 +22,10 @@ describe("Stripe webhook signature verification", () => {
   });
 
   it("accepts a correctly signed payload", async () => {
-    const header = Stripe.webhooks.generateTestHeaderString({ payload, secret });
+    const header = await Stripe.webhooks.generateTestHeaderStringAsync({
+      payload,
+      secret,
+    });
     const event = await Stripe.webhooks.constructEventAsync(
       payload,
       header,
@@ -31,7 +38,7 @@ describe("Stripe webhook signature verification", () => {
   });
 
   it("rejects a payload signed with the wrong secret", async () => {
-    const header = Stripe.webhooks.generateTestHeaderString({
+    const header = await Stripe.webhooks.generateTestHeaderStringAsync({
       payload,
       secret: "whsec_a_different_secret",
     });
@@ -47,7 +54,10 @@ describe("Stripe webhook signature verification", () => {
   });
 
   it("rejects a tampered payload even with a validly-formatted header", async () => {
-    const header = Stripe.webhooks.generateTestHeaderString({ payload, secret });
+    const header = await Stripe.webhooks.generateTestHeaderStringAsync({
+      payload,
+      secret,
+    });
     const tamperedPayload = payload.replace("sub_test_123", "sub_evil_456");
     await expect(
       Stripe.webhooks.constructEventAsync(

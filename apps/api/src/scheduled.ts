@@ -4,13 +4,16 @@ import { schema } from "@kwartaal/db/schema";
 import { daysUntilDue, dueReminderStage, type ReminderCadence } from "@kwartaal/core";
 import type { Bindings, ReminderQueueMessage } from "./bindings";
 import { logger } from "./lib/logger";
+import { runWeeklyBackup, sweepExpiredDeletions } from "./lib/backup";
 
 /**
  * Two crons share this handler (see wrangler.toml [triggers]), dispatched
  * on event.cron:
  *   - "0 * * * *"  hourly reminder fan-out — the product's heartbeat.
  *   - "0 3 * * 0"  weekly logical D1 backup export to the BACKUPS bucket
- *     (8 weekly retained). Pillar 6 implements the actual SQL dump.
+ *     (8 weekly retained), bundled with the 30-day hard-cascade-delete
+ *     sweep for expired deletion requests (same cron surface, per Pillar
+ *     5's own note — both are low-frequency housekeeping).
  */
 export async function handleScheduled(
   event: ScheduledController,
@@ -20,14 +23,27 @@ export async function handleScheduled(
   logger.info("scheduled-trigger-fired", { cron: event.cron });
 
   if (event.cron === "0 * * * *") {
-    ctx.waitUntil(fanOutReminders(env));
+    // event.scheduledTime (not wall-clock Date.now()) so a test harness's
+    // "time-travel" — overriding scheduledTime via createScheduledController
+    // — genuinely drives the fan-out's notion of "today," the same
+    // mechanism the plan's year-rollover/DST test relies on by name.
+    ctx.waitUntil(fanOutReminders(env, new Date(event.scheduledTime)));
     return;
   }
 
   if (event.cron === "0 3 * * 0") {
-    // Pillar 6: weekly logical backup export to env.BACKUPS.
+    // Sequential, not two parallel waitUntils: the backup should capture a
+    // pre-sweep snapshot (so a just-expired org's final state is still in
+    // that week's backup), and serializing the two avoids both touching D1
+    // concurrently.
+    ctx.waitUntil(runWeeklyMaintenance(env, new Date(event.scheduledTime)));
     return;
   }
+}
+
+async function runWeeklyMaintenance(env: Bindings, now: Date): Promise<void> {
+  await runWeeklyBackup(env);
+  await sweepExpiredDeletions(env, now);
 }
 
 /**
@@ -43,9 +59,8 @@ export async function handleScheduled(
  * the plan's 1.000-org load pass is an explicit Pillar 6 gate, not this
  * pillar's.
  */
-async function fanOutReminders(env: Bindings): Promise<void> {
+async function fanOutReminders(env: Bindings, now: Date): Promise<void> {
   const db = createDb(env.DB);
-  const now = new Date();
 
   const rows = await db
     .select({

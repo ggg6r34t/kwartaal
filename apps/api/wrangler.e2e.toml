@@ -1,0 +1,57 @@
+# Local-dev-only mirror of wrangler.toml's default environment, used
+# exclusively by e2e/playwright.config.ts. Same real local dev D1/R2/queue
+# resources as `npm run dev:api` (not the vitest-pool-workers-only
+# wrangler.test.toml, which points at differently-named resources) — omits
+# only [browser], because this wrangler version hard-fails `wrangler dev`
+# startup entirely when Browser Rendering is declared and unavailable
+# locally ("Browser Rendering is not supported locally. Please use
+# `wrangler dev --remote` instead."), not just the route that uses it. Not
+# deployable — the real wrangler.toml's [env.staging]/[env.production] keep
+# [browser] for real deploys.
+name = "kwartaal-api"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kwartaal"
+database_id = "b3db5d28-6742-4001-953d-f41215fda024"
+migrations_dir = "../../packages/db/migrations"
+
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "kwartaal-storage"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "kwartaal-backups"
+
+[[queues.producers]]
+queue = "kwartaal-reminders"
+binding = "REMINDER_QUEUE"
+
+[[queues.consumers]]
+queue = "kwartaal-reminders"
+max_batch_size = 10
+max_retries = 3
+
+[[queues.producers]]
+queue = "kwartaal-exports"
+binding = "EXPORT_QUEUE"
+
+[[queues.consumers]]
+queue = "kwartaal-exports"
+max_batch_size = 5
+max_retries = 3
+
+[triggers]
+crons = ["0 * * * *", "0 3 * * 0"]
+
+[vars]
+ENVIRONMENT = "development"
+BETTER_AUTH_URL = "http://localhost:8787"
+APP_ORIGIN = "http://localhost:5173"
+EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+STRIPE_PRICE_MONTHLY = "REPLACE_WITH_STRIPE_PRICE_MONTHLY"
+STRIPE_PRICE_ANNUAL = "REPLACE_WITH_STRIPE_PRICE_ANNUAL"

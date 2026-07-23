@@ -12,6 +12,7 @@ import {
   type MeResponse,
 } from "@kwartaal/core";
 import type { AppEnv } from "../bindings";
+import { requireRole } from "../middleware/auth";
 import { toBusinessProfileDto } from "../lib/business-profile";
 import { audit } from "../lib/audit";
 import { computeEntitlement } from "../lib/entitlement";
@@ -30,6 +31,7 @@ export const onboarding = new Hono<AppEnv>();
  */
 onboarding.post(
   "/complete",
+  requireRole("owner"),
   zValidator("json", onboardingCompleteRequestSchema),
   async (c) => {
     const body = c.req.valid("json");

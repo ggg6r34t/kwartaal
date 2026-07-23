@@ -971,15 +971,282 @@ src/entry-prerender.tsx --outDir dist-server` + `scripts/prerender.mjs`
   never rendered. This is precisely what Pillar 6's Playwright e2e stage
   exists to close.
 
+## Pillar 6: Hardening & launch — mostly complete (staging/production cutover BLOCKED)
+
+The single biggest development this pillar: **real browser automation is
+available in this environment** — contradicting every prior pillar's stated
+"no browser automation tool available" limitation. Verified directly
+(`npx playwright install chromium` — a real download — then a live
+`chromium.launch()` round-trip) before relying on it. This closed the
+standing frontend-verification gap Pillars 3, 4, and 5 all flagged.
+
+### What's done
+
+**D1-backed integration test harness (new capability, not just new tests)**
+
+- `@cloudflare/vitest-pool-workers@0.12.0` (pinned — 0.13.0+ needs vitest
+  ^4.1.0, this repo is on ^3.2.7) wired into `apps/api`: real D1/R2/Queues
+  bindings under actual workerd, not Node mocks. `wrangler.test.toml`
+  (test-only, omits `[browser]` — no local Miniflare simulation for it),
+  `vitest.config.ts`, `vitest.setup.ts` (runs real migrations),
+  `vitest-env.d.ts` (types `env` via `ProvidedEnv` module augmentation).
+- Windows-specific reliability fixes, both verified by running the full
+  suite twice in a row after each: `poolOptions.workers.singleWorker: true`
+  (one Miniflare/workerd instance for the whole run — one-per-file-in-
+  parallel intermittently refused loopback connections on Windows) and
+  `isolatedStorage: false` (per-test storage snapshot/restore hit a
+  Windows file-locking race — "EBUSY... unlink...sqlite" — specifically
+  whenever a test deleted an R2 object; see the hard-delete-sweep tests
+  below). Turning isolation off means D1/R2 state persists across every
+  test in the run, which is safe everywhere except the IP-keyed rate
+  limiter — `vitest.setup.ts` now clears `rate_limits` in a global
+  `beforeEach` so accumulated sign-ups across unrelated tests don't start
+  429-ing real ones partway through the suite.
+- `src/integration/helpers.ts`: real sign-up/sign-in/onboard/invite helpers
+  driving the actual HTTP surface (`SELF.fetch`), not shortcuts through
+  directly-seeded session rows.
+
+**Tests added, all real HTTP/D1/R2/Queue/Cron, not unit tests of internal functions**
+
+- `tenant-isolation.test.ts` — two real orgs, real data, every cross-org
+  read/list asserted 404/empty/unchanged. Satisfies the Definition of
+  Done's "tenant isolation proven by a test running real requests as two
+  orgs asserting zero crossover."
+- `bookkeeper-role.test.ts` — exhaustive mutation-route enumeration (built
+  by grepping every `.post`/`.patch`/`.put`/`.delete` across
+  `routes/*.ts`), 17 mutation probes all asserted 403 for a bookkeeper,
+  plus reads asserted 200. **Writing this test caught a real, previously
+  unnoticed security gap**: `POST /onboarding/complete` had no
+  `requireRole("owner")` guard — every other mutation route already did.
+  Fixed in the same commit as the test that caught it, before the test was
+  ever run green.
+- `reminder-idempotency.test.ts` — two layers proven separately: the
+  cron's pre-check (skips re-enqueueing once a log exists) and the actual
+  guarantee (the consumer's `reminder_logs` unique-index insert, proven by
+  feeding the consumer the identical message twice and asserting exactly
+  one row).
+- `year-rollover.test.ts` — real time-travel via
+  `createScheduledController({ scheduledTime })`: Q4's deadline lands on
+  31 Jan of the following year; `/income-tax/<next-year>` degrades to
+  `figuresPending: true` with no fabricated number; a cron tick fired at a
+  January instant computes days-until-due against that instant, not real
+  wall-clock time (required refactoring `scheduled.ts`'s `fanOutReminders`
+  to take `now: Date` from `event.scheduledTime` instead of calling
+  `new Date()` internally — production-behavior-neutral).
+- `backup-and-deletion.test.ts` — the weekly backup (see below) round-
+  tripped through real R2 (a fresh org's row is really in the zip,
+  including Better Auth's own `user` table, which isn't in `schema.ts`'s
+  registry — discovered via `PRAGMA table_list`, not a hardcoded name
+  list), pruning caps at 8; the hard-delete sweep (see below) proven to
+  actually delete D1 rows, R2 objects, and cascade the auth session
+  (post-sweep request with the old cookie: 401) for an org past the grace
+  period, and to leave a too-recent one untouched.
+- `security-probes.test.ts` — security headers present on every response;
+  webhook forgery via live HTTP (no signature, garbage signature,
+  wrong-secret signature, tampered payload all 400; a genuinely-signed
+  payload 200, proving the rejections are real); receipt upload
+  content-type bypass attempts (executable-disguised-as-no-content-type,
+  disallowed-but-plausible `image/svg+xml`, parameterized
+  `image/png; charset=binary` all 415; a real `image/png` 201).
+- `load-reminder-fanout.test.ts` — 1,000 orgs seeded directly via chunked
+  D1 inserts (D1 caps bound params at 100/statement, discovered by hitting
+  it), one real cron tick: **~3.3s to scan and enqueue for all 1,000**
+  (`reminder-fan-out-complete` logged `scanned:1000, enqueued:1000`),
+  well under a generous 30s budget. Cleans up its own seeded orgs in a
+  `finally` (isolatedStorage is off — leaving 1,000 rows behind would slow
+  every later test in the suite, which is exactly what happened before the
+  cleanup was added).
+- `lib/stripe-webhook.test.ts` (Pillar 5) updated to use
+  `generateTestHeaderStringAsync` — running under real workerd this pillar
+  is what caught that the sync `generateTestHeaderString` needs a sync
+  HMAC path only Node's polyfilled crypto has; real workerd's
+  `crypto.subtle` is async-only. Confirms production code
+  (`constructEventAsync` + `createSubtleCryptoProvider`) was already right.
+
+**Weekly backup export + 30-day hard-cascade-delete sweep (`src/lib/backup.ts`)**
+
+- `runWeeklyBackup`: enumerates every real D1 table via `PRAGMA table_list`
+  (not a direct `sqlite_master` query — D1's authorizer rejects that,
+  since it would expose Cloudflare's own internal bookkeeping tables),
+  dumps each to its own JSON file, zips to
+  `weekly/<iso-timestamp>.zip` in `BACKUPS`, prunes to the 8 most recent.
+  Routed through Drizzle's `db.all(sql...)` rather than a raw
+  `env.DB.prepare()` call — the latter hit a Miniflare-under-test bug
+  (`D1DatabaseSessionAlwaysPrimary` / "_cf_METADATA.key is prohibited")
+  that Drizzle's own query path doesn't.
+- `sweepExpiredDeletions`: deletes every org past
+  `deletionRequestedAt + 30 days` — R2 objects first (`RECEIPTS.list` by
+  `${orgId}/` prefix, one `delete` at a time, not batched — a batch delete
+  hit the same Windows R2 file-locking issue the isolatedStorage fix
+  above addresses), then the `orgs` row (cascades every org-scoped table
+  via the schema's own `onDelete: "cascade"` FKs), then the Better Auth
+  `user` row explicitly (not reachable by that cascade — cascades run
+  from `users.auth_user_id` → `user`, not the other way).
+- Both run sequentially in one `ctx.waitUntil`, not two parallel ones — the
+  backup should capture pre-sweep state, and running them concurrently is
+  what caused the Windows file-locking issue above in the first place.
+- The 30-day sweep was Pillar 5's own deferred deviation #3; it's now live.
+
+**Backup restore — rehearsed locally, a real finding, not a rubber stamp**
+
+A full disaster-recovery drill against the real local dev D1 (not staging —
+no staging Cloudflare credentials exist in this environment): confirmed
+real seeded data, `wrangler d1 export`'d it, backed up the D1 state
+directory, deleted it (`rm -rf`) to simulate total loss, confirmed the
+simulated loss, then attempted restore — which **failed twice** for two
+different real reasons (pre-applying migrations before importing a full
+export double-creates `d1_migrations`; `wrangler d1 execute --file`
+against local D1 doesn't execute a multi-table file as one ordered batch,
+so an FK-referencing INSERT can run before its target table's CREATE
+TABLE). Restored the local dev D1 from the filesystem backup and verified
+original row counts came back exactly — the dev environment was left
+exactly as found. Full narrative and the corrected restore procedure (this
+app's own per-table JSON backup, dependency-ordered) are in
+`docs/deploy-runbook.md`. Restoring against **real** (non-local) D1 via
+`--remote` goes through Cloudflare's actual import API, not local
+Miniflare's batching, and remains the untested path — BLOCKED on staging
+credentials, same as everything else in the cutover checklist.
+
+**Playwright e2e — set up for real, three primary flows, plus a full visual pass**
+
+- `e2e/` is a new workspace (`@kwartaal/e2e`), `playwright.config.ts` starts
+  a real `wrangler dev` (via `apps/api/wrangler.e2e.toml` — a dev-only
+  mirror of the default env omitting `[browser]`, because this wrangler
+  version hard-fails `wrangler dev` startup entirely when Browser
+  Rendering is declared and unavailable locally, not just the one route
+  that uses it) and a real `vite dev`, then drives both with actual
+  Chromium.
+- **Flow 1** (`core-quarter-flow.spec.ts`): real onboarding wizard
+  click-through (sign-up itself via the API — the UI is magic-link-only,
+  no password field to drive headlessly) → Q3 income + expense lines via
+  the real form → the mirror shows the correct computed owe amount → file
+  → pay → `firstQuarterJustClosed: true` captured from the real response
+  → VAT screen has genuinely moved on to Q4's fresh checklist. **Not
+  covered**: "gates drop at next quarter → trial read-only → subscribe →
+  gates reopen" — no time-travel exists for a live `wrangler dev` process
+  (only the vitest-pool-workers harness has that, see
+  `year-rollover.test.ts` above, which already proves the gate-drop logic
+  itself), and the subscribe step needs a real Stripe account (BLOCKED).
+- **Flow 2** (`receipt-vault-export.spec.ts`): real file upload via a
+  hidden `<input type=file>`, checklist toggling, full account export
+  enqueued and **actually processed by wrangler dev's real local Queues
+  simulation** (auto-consumes, unlike the vitest harness which needs
+  manual draining), downloaded zip verified as real non-trivial content.
+  **Caught a real product bug**: `Vault.tsx`'s `RecentRecords` never
+  refetched after a new receipt was captured (its `useEffect` only
+  depended on `year`, fetched once on mount) — invisible to every prior
+  API-level test since none of them looked at what the screen actually
+  showed after an upload. Fixed with a `recordsVersion` counter bumped on
+  capture, threaded through as a new effect dependency.
+- **Flow 3** (`reminder-email.spec.ts`): a deadline seeded (via the real
+  `wrangler` CLI against the same local D1 the dev server uses — SQL
+  written to a temp file and passed via `--file`, not `--command`, since
+  `execFileSync`'s `shell:true` word-splits an unquoted multi-word command
+  string on Windows) exactly 7 real days out, cron fired via wrangler
+  dev's own `--test-scheduled` local trigger endpoint, `reminder_logs`
+  polled until a `t7` row appears. No time-travel needed — the deadline is
+  genuinely 7 days from actual today.
+- **Visual pass** (`visual-pass.spec.ts`): 19 screens screenshotted and
+  asserted error-free — 11 marketing pages, 7 authenticated app screens (as
+  the seeded Maya demo account, so real mid-October 2026 data renders, not
+  an empty state), the onboarding welcome screen. Closes the standing gap
+  every prior pillar's PROGRESS.md flagged. Screenshots spot-checked by
+  hand (Today, Home, Vault) — render correctly, match the design system,
+  no blank/broken states. One benign observation, not a bug: a screenshot
+  taken immediately after the main heading appears can catch the
+  account-menu widget still showing "Loading…" — real but sub-second.
+- All 22 e2e tests (3 flows + 19 visual) pass together, run twice
+  consecutively for reliability.
+
+**Security pass**
+
+Headers, webhook forgery, and upload content-type bypass covered by
+`security-probes.test.ts` above; authz cross-org and the bookkeeper
+mutation probe by `tenant-isolation.test.ts` / `bookkeeper-role.test.ts`.
+
+**Docs**
+
+`README.md` (repo root, didn't exist before this pillar), `docs/env.md`
+(every var/secret, purpose, degraded-mode-when-absent), `docs/tax-figures.md`
+(the yearly-update procedure — new year is always a new row, the existing
+row is never edited; documents that the current 2026 row is a placeholder
+mixing locked-decision figures with 2025 published rates, pending official
+2026 publication), `docs/deploy-runbook.md` (deploy steps, the backup/
+restore rehearsal narrative above, the staging→production cutover
+checklist as concrete unchecked items, not vague prose).
+
+### Gate results
+
+| Check                                                                                                                                    | Result                                                                                                                                                                                                           |
+| ---------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run typecheck` (5 workspaces incl. new `e2e`)                                                                                       | ✅                                                                                                                                                                                                               |
+| `npm test` (150 tests: 93 core + 4 db + 44 api + 9 web, 3 skipped)                                                                       | ✅                                                                                                                                                                                                               |
+| `npm run lint`                                                                                                                           | ✅                                                                                                                                                                                                               |
+| `npm run format:check`                                                                                                                   | ✅ (one pre-existing untracked file, `VERIFICATION-PROTOCOL.md`, not part of this pillar's work, left untouched and unstaged)                                                                                    |
+| `npm run token-check`                                                                                                                    | ✅ 0 violations, 0 exceptions                                                                                                                                                                                    |
+| `npm run build:web`                                                                                                                      | ✅                                                                                                                                                                                                               |
+| `wrangler deploy --dry-run` (API)                                                                                                        | ✅ (3.68 MB / 605 KB gzip)                                                                                                                                                                                       |
+| `apps/api` integration suite (real D1/R2/Queues/Cron under workerd)                                                                      | ✅ 13 files / 44 tests, run twice consecutively for reliability                                                                                                                                                  |
+| e2e (real Chromium against real `wrangler dev` + `vite dev`)                                                                             | ✅ 22 tests (3 flows + 19-screen visual pass), run twice consecutively                                                                                                                                           |
+| Backup restore rehearsal                                                                                                                 | ✅ performed locally (real disaster-recovery drill, two real failures found and documented, dev environment restored exactly) — **staging rehearsal BLOCKED**, no staging credentials                            |
+| Load pass (1,000 orgs, one cron tick)                                                                                                    | ✅ ~3.3s scan+enqueue                                                                                                                                                                                            |
+| Engine golden tests                                                                                                                      | ✅ (part of the 93 core tests above — unchanged from Pillar 2)                                                                                                                                                   |
+| Provata self-scan                                                                                                                        | ❌ BLOCKED — external tool, no access in this environment                                                                                                                                                        |
+| Production cutover (custom domain, live Stripe/Resend/Sentry, TaxFigures 2026 real figures, uptime monitor, cron verified in production) | ❌ BLOCKED — no real Cloudflare/Stripe/Resend/Sentry credentials; this is a hard-to-reverse, shared-infrastructure action not taken unilaterally without explicit user authorization even if credentials existed |
+
+### Deviations / notes
+
+1. **Staging → production cutover is entirely BLOCKED**, not partially
+   done — every item (custom domain, live Stripe keys + webhook, Resend
+   domain verification, Sentry DSN, TaxFigures 2026 real published
+   figures, uptime monitor, cron verified firing in production) needs
+   real external credentials this environment doesn't have. Listed as a
+   concrete checklist in `docs/deploy-runbook.md` rather than left vague.
+2. **Provata self-scan is BLOCKED** — no access to the tool itself, not a
+   testing gap this repo can close from the inside.
+3. **The Stripe test-mode round-trip remains simulated, not real** (same
+   BLOCKED status as Pillar 5) — flow 1's e2e deliberately stops before
+   the subscribe step rather than faking a Stripe response.
+4. **`apps/api`'s local D1/R2 test isolation runs with
+   `isolatedStorage: false`**, a deliberate trade documented in
+   `vitest.config.ts`'s own comment — every test creates its own
+   uniquely-emailed org, so shared state across tests is safe except for
+   the rate limiter, which is explicitly reset. This is a testing-harness
+   choice, not a production behavior change.
+5. **`e2e/tests/receipt-vault-export.spec.ts` fixed a real product bug**
+   in `apps/web/src/routes/Vault.tsx` mid-pillar (see "What's done" above)
+   — flagged here rather than left implicit, since it's exactly the kind
+   of gap only real browser interaction (not API-level testing) can catch.
+6. **The wrangler version in use (3.114.17) is several majors behind
+   current (4.x)** — surfaced concretely by the backup-restore rehearsal's
+   `wrangler d1 execute --file` ordering bug. Not upgraded this pillar
+   (out of scope, and the workaround — this app's own per-table restore
+   procedure — sidesteps it entirely for the path that actually matters,
+   `--remote` against real D1). Worth a deliberate upgrade pass before
+   relying on local `wrangler dev`/`d1` more heavily.
+7. **`apps/api/wrangler.e2e.toml` is a third wrangler config**, alongside
+   the real `wrangler.toml` and the vitest-only `wrangler.test.toml` — all
+   three share the same D1 `database_id`/R2 bucket names for local dev
+   (so `wrangler d1 execute` from anywhere resolves the same local file)
+   but the vitest one uses differently-suffixed resource names
+   (`kwartaal-test`) to stay isolated from real local dev data, while the
+   e2e one deliberately shares the real dev resources — e2e-created test
+   orgs accumulate in the same local D1 a human developer uses (harmless,
+   same as any other local dev usage, and easily cleared with
+   `npm run db:local:reset`).
+
 ## Next session
 
-Start with: "Read KWARTAAL-BUILD-PLAN.md, CLAUDE.md, and PROGRESS.md,
-continue with Pillar 6." Before writing any e2e tests, strongly consider:
-(1) obtaining a real Stripe test account and walking through one real
-Checkout → webhook → entitlement-unlocks cycle by hand, since Pillar 6's
-e2e flow explicitly includes "subscribe → gates reopen" and that path has
-only ever been simulated with a hand-signed webhook payload, never a real
-Stripe response; (2) opening the app in an actual browser
-(`npm run dev:api` + `npm run dev:web`) to visually verify Pillars 3-5's
-screens before writing Playwright specs against them — that verification
-still has not happened at all, for any pillar's frontend work.
+Pillar 6 was the plan's last pillar — what remains is entirely the
+BLOCKED-on-external-credentials items above, not further engineering work
+this environment can do alone. Start with: "Read KWARTAAL-BUILD-PLAN.md,
+CLAUDE.md, and PROGRESS.md" and then, with the user, work through the
+cutover checklist in `docs/deploy-runbook.md` in order — a real Stripe
+test account (walk through one real Checkout → webhook → entitlement-
+unlocks cycle by hand, since that's the one flow this repo has only ever
+simulated) is the single highest-value next external dependency to obtain,
+followed by Resend domain verification and a Sentry DSN. A staging
+environment with real credentials would also let the backup-restore
+rehearsal's still-untested `--remote` path (see "What's done" above) get
+verified for real, and let a Provata scan actually run against a deployed
+marketing site.

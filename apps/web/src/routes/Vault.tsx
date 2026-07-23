@@ -27,6 +27,7 @@ export function Vault() {
   const year = new Date().getFullYear();
   const [search, setSearch] = useState("");
   const [yearFilter, setYearFilter] = useState(year);
+  const [recordsVersion, setRecordsVersion] = useState(0);
 
   return (
     <div>
@@ -67,11 +68,14 @@ export function Vault() {
       </div>
 
       <div className="mb-7 grid grid-cols-[1.5fr_1fr] gap-5">
-        <ReceiptCapture year={yearFilter} />
+        <ReceiptCapture
+          year={yearFilter}
+          onCaptured={() => setRecordsVersion((v) => v + 1)}
+        />
         <HoursRing year={yearFilter} />
       </div>
 
-      <RecentRecords year={yearFilter} search={search} />
+      <RecentRecords year={yearFilter} search={search} reloadKey={recordsVersion} />
       <StartupCostsCorner />
 
       <footer className="border-t border-border pt-4 text-xs text-faint">
@@ -82,7 +86,7 @@ export function Vault() {
   );
 }
 
-function ReceiptCapture({ year }: { year: number }) {
+function ReceiptCapture({ year, onCaptured }: { year: number; onCaptured: () => void }) {
   const [receipt, setReceipt] = useState<Receipt | null>(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -99,6 +103,7 @@ function ReceiptCapture({ year }: { year: number }) {
         body: buffer,
       });
       setReceipt(created);
+      onCaptured();
     } catch {
       setError(
         "Couldn't upload that file — check it's a jpeg, png, webp, or pdf under 8 MB.",
@@ -312,14 +317,26 @@ function HoursRing({ year }: { year: number }) {
   );
 }
 
-function RecentRecords({ year, search }: { year: number; search: string }) {
+function RecentRecords({
+  year,
+  search,
+  reloadKey,
+}: {
+  year: number;
+  search: string;
+  reloadKey: number;
+}) {
   const [receipts, setReceipts] = useState<Receipt[]>([]);
   const [kmEntries, setKmEntries] = useState<KmEntry[]>([]);
 
   useEffect(() => {
     void apiFetch<Receipt[]>(`/receipts?year=${year}`).then(setReceipts);
     void apiFetch<KmEntry[]>(`/km-entries?year=${year}`).then(setKmEntries);
-  }, [year]);
+    // reloadKey bumps on every new receipt capture (see Vault's
+    // onCaptured) — without it, a receipt uploaded after this component
+    // mounted would never appear until the next full page load, since
+    // ReceiptCapture and RecentRecords otherwise share no state.
+  }, [year, reloadKey]);
 
   const rows = useMemo(() => {
     const receiptRows = receipts.map((r) => ({

@@ -1,0 +1,61 @@
+# Test-only mirror of wrangler.toml's default environment, used exclusively
+# by vitest.config.ts (@cloudflare/vitest-pool-workers) to provision real
+# D1/R2/Queues bindings for integration tests under actual workerd — not a
+# deployable config. Omits [browser]: Browser Rendering has no local
+# Miniflare simulation (same reason it gets stripped for `wrangler dev`
+# smoke tests — see PROGRESS.md), and nothing under test exercises it.
+name = "kwartaal-api-test"
+main = "src/index.ts"
+compatibility_date = "2024-12-18"
+compatibility_flags = ["nodejs_compat"]
+
+[[d1_databases]]
+binding = "DB"
+database_name = "kwartaal-test"
+database_id = "b3db5d28-6742-4001-953d-f41215fda024"
+migrations_dir = "../../packages/db/migrations"
+
+[[r2_buckets]]
+binding = "RECEIPTS"
+bucket_name = "kwartaal-storage-test"
+
+[[r2_buckets]]
+binding = "BACKUPS"
+bucket_name = "kwartaal-backups-test"
+
+[[queues.producers]]
+queue = "kwartaal-reminders"
+binding = "REMINDER_QUEUE"
+
+[[queues.consumers]]
+queue = "kwartaal-reminders"
+max_batch_size = 10
+max_retries = 3
+
+[[queues.producers]]
+queue = "kwartaal-exports"
+binding = "EXPORT_QUEUE"
+
+[[queues.consumers]]
+queue = "kwartaal-exports"
+max_batch_size = 5
+max_retries = 3
+
+[triggers]
+crons = ["0 * * * *", "0 3 * * 0"]
+
+[vars]
+ENVIRONMENT = "development"
+BETTER_AUTH_URL = "http://localhost:8787"
+APP_ORIGIN = "http://localhost:5173"
+EMAIL_FROM = "Kwartaal <no-reply@send.kwartaal.example>"
+STRIPE_PRICE_MONTHLY = "price_test_monthly"
+STRIPE_PRICE_ANNUAL = "price_test_annual"
+# Not a real secret. Lets the webhook-forgery integration test exercise the
+# live /webhooks/stripe HTTP route's signature check (400 on forgery, 200 on
+# a genuinely-signed test event), not just the unit-tested SDK call. Value
+# matches apps/api/.dev.vars's STRIPE_WEBHOOK_SECRET on purpose — .dev.vars
+# (gitignored, local-only) overrides this [vars] entry for a local run, but
+# CI has no .dev.vars, so this [vars] entry is what CI actually uses; both
+# must agree or the test passes locally and fails in CI (or vice versa).
+STRIPE_WEBHOOK_SECRET = "whsec_local_smoke_test_secret"

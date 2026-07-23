@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.base.json",
   "compilerOptions": {
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "@cloudflare/vitest-pool-workers"],
     "paths": {
       "@kwartaal/core": ["../../packages/core/src/index.ts"],
       "@kwartaal/db": ["../../packages/db/src/index.ts"],
@@ -9,5 +9,5 @@
       "@kwartaal/db/auth-schema": ["../../packages/db/src/auth-schema.ts"]
     }
   },
-  "include": ["src"]
+  "include": ["src", "vitest.config.ts", "vitest.setup.ts", "vitest-env.d.ts"]
 }

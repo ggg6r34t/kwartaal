@@ -80,6 +80,10 @@ export function buildReminderEmail(ctx: ReminderEmailContext): {
       subject = `${label} still needs 20 minutes`;
       lede = `${dateStr} has passed. Same checklist, same 20 minutes, whenever you're ready.`;
       break;
+    case "same_day_1900":
+      subject = `${label} — pick up on your laptop`;
+      lede = `You asked to pick this up here tonight. ${label} is due ${dateStr} — about 25 minutes.`;
+      break;
   }
 
   const text = `${lede}\n\nOpen Kwartaal: ${cta}\n\nEstimates only — Mijn Belastingdienst or your bookkeeper has the final word.`;

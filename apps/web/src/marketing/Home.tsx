@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { formatCents, splitInvoice } from "@kwartaal/core";
 import { TermChip } from "../components/TermChip";
 import { SetAsideCalculator } from "../components/SetAsideCalculator";
 import { MarketingLayout } from "./MarketingLayout";
@@ -14,23 +15,26 @@ const TIMELINE = [
 export function Home() {
   return (
     <MarketingLayout current="/">
-      <section aria-label="Hero" className="mx-auto max-w-[1120px] px-10 pb-8 pt-16">
+      <section
+        aria-label="Hero"
+        className="mx-auto max-w-[1120px] px-5 pb-8 pt-10 sm:px-10 md:pt-16"
+      >
         <div className="max-w-[640px]">
           <div className="mb-3.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
             For self-employed expats in the Netherlands
           </div>
-          <h1 className="m-0 mb-5 text-[52px] font-semibold leading-[1.08] tracking-tight">
+          <h1 className="m-0 mb-5 text-[34px] font-semibold leading-[1.1] tracking-tight md:text-[52px] md:leading-[1.08]">
             Dutch taxes, minus the dread.
           </h1>
-          <p className="mb-6 max-w-[540px] text-[17px] leading-relaxed text-body">
+          <p className="mb-6 max-w-[540px] text-[15px] leading-relaxed text-body md:text-[17px]">
             Kwartaal guides you through the Dutch tax year — what's due, what every number
             means, and how much to set aside. It never files for you; it makes sure you
             understand what you file.
           </p>
-          <div className="flex items-center gap-5">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:gap-5">
             <Link
               to="/pricing"
-              className="rounded-control bg-accent px-5 py-3.5 text-[15px] font-semibold text-white no-underline hover:bg-accent-hover"
+              className="min-h-[44px] rounded-control bg-accent px-5 py-3.5 text-[15px] font-semibold text-white no-underline hover:bg-accent-hover"
             >
               Start free — your first quarter is on us
             </Link>
@@ -45,9 +49,9 @@ export function Home() {
 
         <div
           aria-label="The year at a glance"
-          className="mt-14 rounded-card border border-border bg-surface p-9 pb-7 shadow-card"
+          className="mt-10 rounded-card border border-border bg-surface p-5 pb-6 shadow-card sm:p-9 sm:pb-7 md:mt-14"
         >
-          <div className="mb-7 flex items-baseline justify-between">
+          <div className="mb-6 flex items-baseline justify-between md:mb-7">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-faint">
               Your 2026, mid-October
             </div>
@@ -55,40 +59,42 @@ export function Home() {
               Figures: tax year 2026
             </span>
           </div>
-          <div className="flex justify-between">
+          <div className="flex flex-col gap-3.5 md:flex-row md:justify-between">
             {TIMELINE.map((step) => (
               <div
                 key={step.label}
-                className="flex min-w-[110px] flex-col items-center gap-2.5"
+                className="flex items-center gap-3 md:min-w-[110px] md:flex-col md:items-center md:gap-2.5"
               >
                 {step.settled ? (
-                  <div className="flex h-[34px] w-[34px] items-center justify-center rounded-[10px] bg-state-settled text-white">
+                  <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-[10px] bg-state-settled text-white">
                     ✓
                   </div>
                 ) : step.due ? (
-                  <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full border-[2.5px] border-accent text-[12.5px] font-bold text-accent tabular-nums">
+                  <div className="flex h-[34px] w-[34px] flex-none items-center justify-center rounded-full border-[2.5px] border-accent text-[12.5px] font-bold text-accent tabular-nums">
                     12
                   </div>
                 ) : (
-                  <div className="h-[34px] w-[34px] rounded-full border-2 border-dashed border-border-strong bg-paper" />
+                  <div className="h-[34px] w-[34px] flex-none rounded-full border-2 border-dashed border-border-strong bg-paper" />
                 )}
-                <div className="text-center">
+                <div className="flex flex-1 items-baseline justify-between gap-2 md:block md:text-center">
                   <div
                     className={`text-sm font-semibold ${step.future ? "text-body" : ""}`}
                   >
                     {step.label}
                   </div>
-                  <div className="text-xs tabular-nums text-body">{step.date}</div>
-                  <div
-                    className={`mt-0.5 text-xs font-semibold ${
-                      step.settled
-                        ? "text-state-settled"
-                        : step.due
-                          ? "text-accent"
-                          : "text-faint"
-                    }`}
-                  >
-                    {step.status}
+                  <div className="flex items-baseline gap-2 md:block">
+                    <span className="text-xs tabular-nums text-body">{step.date}</span>
+                    <span
+                      className={`text-xs font-semibold md:mt-0.5 md:block ${
+                        step.settled
+                          ? "text-state-settled"
+                          : step.due
+                            ? "text-accent"
+                            : "text-faint"
+                      }`}
+                    >
+                      {step.status}
+                    </span>
                   </div>
                 </div>
               </div>
@@ -103,23 +109,28 @@ export function Home() {
 
       <section
         aria-label="Set-aside calculator"
-        className="mx-auto max-w-[1120px] px-10 py-10"
+        className="mx-auto max-w-[1120px] px-5 py-8 sm:px-10 sm:py-10"
       >
-        <div className="bg-not-yours rounded-card border border-accent-border bg-accent-tint p-9">
-          <h2 className="m-0 mb-2.5 text-[23px] font-semibold tracking-tight">
+        <div className="bg-not-yours rounded-card border border-accent-border bg-accent-tint p-5 sm:p-9">
+          <h2 className="m-0 mb-2.5 text-lg font-semibold tracking-tight sm:text-[23px]">
             A client just paid you. Now what?
           </h2>
           <p className="mb-4 max-w-lg text-sm leading-relaxed text-body">
             Type the amount — Kwartaal shows what's yours, what's btw, and what to reserve
             for income tax.
           </p>
-          <SetAsideCalculator />
+          <div className="hidden md:block">
+            <SetAsideCalculator />
+          </div>
+          <div className="md:hidden">
+            <SetAsideTeaser />
+          </div>
         </div>
       </section>
 
       <section
         aria-label="What Kwartaal does"
-        className="mx-auto flex max-w-[1120px] flex-col gap-14 px-10 py-16"
+        className="mx-auto flex max-w-[1120px] flex-col gap-10 px-5 py-10 sm:gap-14 sm:px-10 sm:py-16"
       >
         <FeatureRow
           eyebrow="Deadlines"
@@ -133,7 +144,7 @@ export function Home() {
                 className="h-3.5 w-3.5 bg-accent [border-radius:0_100%_0_0]"
               />
               <span className="text-[12.5px] font-semibold">Kwartaal</span>
-              <span className="text-xs text-faint">post@kwartaal.nl</span>
+              <span className="text-xs text-faint">hello@mail.kwartaal.app</span>
             </div>
             <div className="px-6 py-5">
               <div className="mb-2 text-[15px] font-semibold">
@@ -203,17 +214,17 @@ export function Home() {
         aria-label="What Kwartaal is not"
         className="border-y border-border bg-wash"
       >
-        <div className="mx-auto grid max-w-[1120px] grid-cols-[220px_1fr] gap-11 px-10 py-16">
+        <div className="mx-auto grid max-w-[1120px] grid-cols-1 gap-4 px-5 py-10 sm:gap-11 sm:px-10 sm:py-16 md:grid-cols-[220px_1fr]">
           <div className="pt-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
             What Kwartaal is not
           </div>
           <div>
-            <p className="mb-5 max-w-2xl font-explainer text-[26px] italic leading-snug">
+            <p className="mb-5 max-w-2xl font-explainer text-lg italic leading-snug sm:text-[26px]">
               Kwartaal doesn't file your return, doesn't do your bookkeeping, and doesn't
               replace your bookkeeper. It guides, estimates, and reminds — you stay the
               one who files, and the one who understands why.
             </p>
-            <div className="flex flex-wrap gap-6 text-[13px] text-body">
+            <div className="flex flex-wrap gap-4 text-[13px] text-body sm:gap-6">
               <span>Filing happens in Mijn Belastingdienst — by you</span>
               <span>Invoicing stays in the tool you already use</span>
               <span>Complex situations still deserve a professional</span>
@@ -222,7 +233,10 @@ export function Home() {
         </div>
       </section>
 
-      <section aria-label="Testimonial" className="mx-auto max-w-[1120px] px-10 py-16">
+      <section
+        aria-label="Testimonial"
+        className="mx-auto max-w-[1120px] px-5 py-10 sm:px-10 sm:py-16"
+      >
         <div className="mx-auto max-w-2xl text-center">
           <span
             aria-hidden="true"
@@ -241,7 +255,7 @@ export function Home() {
 
       <section
         aria-label="Start"
-        className="mx-auto max-w-[1120px] px-10 pb-20 pt-10 text-center"
+        className="mx-auto max-w-[1120px] px-5 pb-16 pt-8 text-center sm:px-10 sm:pb-20 sm:pt-10"
       >
         <h2 className="m-0 mb-3 text-[34px] font-semibold tracking-tight">
           Your next deadline can feel like this.
@@ -277,17 +291,46 @@ function FeatureRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-2 items-center gap-12">
-      <div className={reverse ? "order-2" : "order-1"}>
+    <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-2 md:gap-12">
+      <div className={reverse ? "md:order-2" : "md:order-1"}>
         <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
           {eyebrow}
         </div>
-        <h2 className="m-0 mb-3 text-[28px] font-semibold leading-snug tracking-tight">
+        <h2 className="m-0 mb-3 text-xl font-semibold leading-snug tracking-tight sm:text-[28px]">
           {title}
         </h2>
         <p className="m-0 text-[15px] leading-relaxed text-body">{body}</p>
       </div>
-      <div className={reverse ? "order-1" : "order-2"}>{children}</div>
+      <div className={reverse ? "md:order-1" : "md:order-2"}>{children}</div>
+    </div>
+  );
+}
+
+const TEASER_SPLIT = splitInvoice(242000, 21, 3000);
+
+/**
+ * The mobile pass's condensed split-teaser (Kwartaal Site Home.dc.html
+ * annex): a compact, non-interactive one-line summary — not the full
+ * calculator. Still computed via the real `splitInvoice`, on a fixed
+ * example amount, so the numbers are real even though the widget isn't
+ * interactive at this size.
+ */
+function SetAsideTeaser() {
+  return (
+    <div className="mt-6 rounded-card border border-border bg-surface p-5 shadow-card">
+      <div className="mb-3 text-sm font-semibold text-ink">
+        A client just paid you €2.420?
+      </div>
+      <div className="flex h-3 overflow-hidden rounded-control border border-border">
+        <div className="bg-sand" style={{ width: "58%" }} />
+        <div className="bg-not-yours" style={{ width: "17%" }} />
+        <div className="bg-reserve" style={{ width: "25%" }} />
+      </div>
+      <p className="m-0 mt-2.5 text-[13px] tabular-nums text-body">
+        Yours {formatCents(TEASER_SPLIT.yoursCents)} · btw{" "}
+        {formatCents(TEASER_SPLIT.vatCents)} · reserve{" "}
+        {formatCents(TEASER_SPLIT.reserveCents)}
+      </p>
     </div>
   );
 }

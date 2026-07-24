@@ -8,11 +8,22 @@ import type { ReminderCadence } from "../contracts/org";
  * stage, ever), so each weekly repeat is its own stage value instead. That
  * index is exactly what makes cron-replay idempotency free: a second
  * insert for a stage that already fired simply conflicts.
+ *
+ * "same_day_1900" is different in kind, not degree: it's not computed by
+ * `dueReminderStage` from days-until-due at all (see the CADENCE_STAGES
+ * table below, which deliberately excludes it) — it only ever fires when a
+ * user has explicitly requested it (`deadlines.sameDayReminderRequestedAt`,
+ * set by POST /deadlines/:id/remind-tonight, "Remind me at my laptop
+ * tonight"). It shares the same reminder_logs uniqueness guarantee: once
+ * sent for a given deadline, it can never send again for that deadline.
  */
 export type ReminderStage =
-  "t14" | "t7" | "t2" | "day" | "overdue_1" | "overdue_2" | "overdue_3";
+  "t14" | "t7" | "t2" | "day" | "overdue_1" | "overdue_2" | "overdue_3" | "same_day_1900";
 
-const STAGE_OFFSET_DAYS: Record<ReminderStage, number> = {
+// Partial, not Record<ReminderStage, ...>: same_day_1900 is deliberately
+// excluded — it's never computed from a day-offset (see the type's own
+// doc comment above).
+const STAGE_OFFSET_DAYS: Partial<Record<ReminderStage, number>> = {
   t14: 14,
   t7: 7,
   t2: 2,

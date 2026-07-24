@@ -34,9 +34,9 @@ export function Pricing() {
 
   return (
     <MarketingLayout current="/pricing">
-      <div className="mx-auto max-w-[1120px] px-10 py-16">
+      <div className="mx-auto max-w-[1120px] px-5 py-10 sm:px-10 sm:py-16">
         <div className="mb-12 max-w-[620px]">
-          <h1 className="m-0 mb-3.5 text-[42px] font-semibold leading-tight tracking-tight">
+          <h1 className="m-0 mb-3.5 text-[28px] font-semibold leading-tight tracking-tight sm:text-[42px]">
             One price. The year included.
           </h1>
           <p className="m-0 text-base leading-relaxed text-body">
@@ -45,7 +45,7 @@ export function Pricing() {
           </p>
         </div>
 
-        <div className="mb-5 grid grid-cols-[1.25fr_1fr] items-stretch gap-5">
+        <div className="mb-5 grid grid-cols-1 items-stretch gap-5 md:grid-cols-[1.25fr_1fr]">
           <section
             aria-label="Pro plan"
             className="flex flex-col rounded-card border-[1.5px] border-accent bg-surface p-9 shadow-card"
@@ -126,9 +126,9 @@ export function Pricing() {
 
         <section
           aria-label="Deductibility"
-          className="bg-not-yours mb-14 rounded-card border border-accent-border bg-accent-tint p-9"
+          className="bg-not-yours mb-14 rounded-card border border-accent-border bg-accent-tint p-5 sm:p-9"
         >
-          <div className="grid grid-cols-[300px_1fr] items-center gap-10">
+          <div className="grid grid-cols-1 items-center gap-6 md:grid-cols-[300px_1fr] md:gap-10">
             <div>
               <h2 className="m-0 mb-2.5 text-xl font-semibold tracking-tight">
                 What it really costs a ZZP'er
@@ -139,20 +139,20 @@ export function Pricing() {
               </p>
             </div>
             <div>
-              <div className="flex items-end gap-0.5 tabular-nums">
-                <div className="flex-[1.4]">
+              <div className="grid grid-cols-2 gap-1.5 tabular-nums sm:flex sm:items-end sm:gap-0.5">
+                <div className="sm:flex-[1.4]">
                   <div className="mb-1.5 text-xs text-body">You pay / year</div>
-                  <div className="flex h-16 items-center justify-center rounded-[8px_0_0_8px] bg-sand text-[15px] font-semibold">
+                  <div className="flex h-16 items-center justify-center rounded-[8px] bg-sand text-[15px] font-semibold sm:rounded-[8px_0_0_8px]">
                     €120
                   </div>
                 </div>
-                <div className="flex-1">
+                <div className="sm:flex-1">
                   <div className="mb-1.5 text-xs text-body">btw back · rubriek 5b</div>
-                  <div className="bg-not-yours flex h-16 items-center justify-center text-xs font-semibold">
+                  <div className="bg-not-yours flex h-16 items-center justify-center rounded-[8px] text-xs font-semibold sm:rounded-none">
                     −€20,83
                   </div>
                 </div>
-                <div className="flex-1">
+                <div className="sm:flex-1">
                   <div className="mb-1.5 text-xs text-body">off your profit</div>
                   <div className="flex h-16 items-end">
                     <div className="mt-3.5 flex h-6 flex-1 items-center justify-center bg-reserve text-xs font-semibold">
@@ -160,11 +160,11 @@ export function Pricing() {
                     </div>
                   </div>
                 </div>
-                <div className="flex-[1.1]">
+                <div className="sm:flex-[1.1]">
                   <div className="mb-1.5 text-xs font-semibold text-accent">
                     effectively
                   </div>
-                  <div className="flex h-16 flex-col items-center justify-center rounded-[0_8px_8px_0] border-[1.5px] border-accent bg-surface">
+                  <div className="flex h-16 flex-col items-center justify-center rounded-[8px] border-[1.5px] border-accent bg-surface sm:rounded-[0_8px_8px_0]">
                     <span className="text-[17px] font-semibold">±€6–7</span>
                     <span className="text-[11.5px] text-body">/month</span>
                   </div>
@@ -189,7 +189,7 @@ export function Pricing() {
           <h2 className="m-0 mb-5 text-2xl font-semibold tracking-tight">
             What's free, what's Pro
           </h2>
-          <div className="grid grid-cols-2 gap-5">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <div className="rounded-card border border-border bg-surface p-7">
               <div className="mb-3.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
                 Free — the safety layer

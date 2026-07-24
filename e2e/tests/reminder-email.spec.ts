@@ -19,7 +19,30 @@ import {
  * via wrangler dev's own `--test-scheduled` local trigger endpoint — a
  * real cron tick, real queue consumer, real D1 write, just anchored to
  * actual wall-clock "today" rather than a simulated one.
+ *
+ * "+7 days" must be computed against the Amsterdam calendar date, not
+ * UTC — the product's own `daysUntilDue` (packages/core) deliberately
+ * counts in Amsterdam calendar days for exactly this reason. Computing in
+ * UTC instead is off by one whenever the test runs between 00:00 and
+ * 02:00 Amsterdam time (UTC+2 in summer) — a real bug this file had,
+ * caught by this exact flake (see AUDIT-REPORT.md's regression sweep).
  */
+function amsterdamDateString(instant: Date): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Europe/Amsterdam",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(instant);
+  const get = (type: string) => parts.find((p) => p.type === type)!.value;
+  return `${get("year")}-${get("month")}-${get("day")}`;
+}
+
+function amsterdamDatePlusDays(days: number): string {
+  const todayIso = amsterdamDateString(new Date());
+  const [y, m, d] = todayIso.split("-").map(Number) as [number, number, number];
+  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
+}
 test("a deadline due in exactly 7 days gets a t7 reminder logged after one real cron tick", async ({
   context,
 }) => {
@@ -28,9 +51,7 @@ test("a deadline due in exactly 7 days gets a t7 reminder logged after one real 
   await apiCompleteOnboarding(context);
   const orgId = await apiGetOrgId(context);
 
-  const dueDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
-    .toISOString()
-    .slice(0, 10);
+  const dueDate = amsterdamDatePlusDays(7);
   const deadlineId = `e2e_ddl_${Date.now()}`;
   d1Execute(
     `INSERT INTO deadlines (id, org_id, kind, due_date, quarter_id, dismissed_at, created_at, updated_at) ` +

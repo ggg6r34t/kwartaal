@@ -9,6 +9,7 @@ import type {
 } from "@kwartaal/core";
 import { apiFetch, ApiError } from "../lib/api";
 import { useMe } from "../hooks/useMe";
+import { useExplainMode } from "../app/explain-mode-context";
 import { DataExportButton } from "../components/DataExportButton";
 
 export function Settings() {
@@ -35,6 +36,8 @@ export function Settings() {
         />
       </div>
 
+      <ExplainModeSection />
+
       {me.role === "owner" && (
         <>
           <RemindersSection
@@ -57,10 +60,10 @@ export function Settings() {
 function Row({ label, value, last }: { label: string; value: string; last?: boolean }) {
   return (
     <div
-      className={`flex justify-between px-6 py-4 text-sm ${last ? "" : "border-b border-border-hairline"}`}
+      className={`flex flex-wrap justify-between gap-x-3 gap-y-1 px-4 py-4 text-sm sm:px-6 ${last ? "" : "border-b border-border-hairline"}`}
     >
       <span className="font-semibold">{label}</span>
-      <span className="text-body">{value}</span>
+      <span className="text-right text-body">{value}</span>
     </div>
   );
 }
@@ -70,6 +73,56 @@ function SectionHeading({ children }: { children: React.ReactNode }) {
     <div className="mb-3 mt-8 text-[11px] font-semibold uppercase tracking-wide text-faint">
       {children}
     </div>
+  );
+}
+
+/** The Learn-layer ※ asides (docs/design's `explainOn`) — default-on, toggled here, applied app-wide immediately via ExplainModeContext. */
+function ExplainModeSection() {
+  const { enabled, setEnabled } = useExplainMode();
+  const [saving, setSaving] = useState(false);
+
+  async function toggle() {
+    setSaving(true);
+    try {
+      await setEnabled(!enabled);
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <>
+      <SectionHeading>Explain notes</SectionHeading>
+      <section className="flex items-center justify-between gap-4 rounded-card border border-border bg-surface p-5">
+        <div>
+          <div className="text-sm font-semibold">
+            Show the ※ notes throughout Kwartaal
+          </div>
+          <p className="m-0 mt-1 max-w-md text-xs leading-relaxed text-body">
+            Short italic asides that explain why a screen works the way it does. On by
+            default — turn them off once you know your way around.
+          </p>
+        </div>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={enabled}
+          aria-label="Show explain notes"
+          disabled={saving}
+          onClick={() => void toggle()}
+          className={`relative h-7 w-12 flex-none rounded-pill border transition-colors disabled:opacity-50 ${
+            enabled ? "border-accent bg-accent" : "border-border-strong bg-wash"
+          }`}
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow-card transition-transform ${
+              enabled ? "translate-x-[22px]" : "translate-x-0.5"
+            }`}
+          />
+        </button>
+      </section>
+    </>
   );
 }
 
@@ -108,7 +161,7 @@ function RemindersSection({
     <>
       <SectionHeading>Reminders</SectionHeading>
       <section className="rounded-card border border-border bg-surface p-5">
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {(["calm", "persistent"] as const).map((option) => (
             <button
               key={option}
@@ -197,7 +250,7 @@ function BillingSection() {
       <SectionHeading>Plan &amp; billing</SectionHeading>
       <section className="rounded-card border border-border bg-surface p-5">
         {status.subscription ? (
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div>
               <div className="text-sm font-semibold capitalize">
                 {status.subscription.plan} · {status.subscription.status}
@@ -304,13 +357,13 @@ function BookkeeperSection() {
             {invites.map((invite) => (
               <div
                 key={invite.id}
-                className="flex items-center justify-between rounded-control border border-border-hairline px-3 py-2 text-[13px]"
+                className="flex items-center justify-between gap-2 rounded-control border border-border-hairline px-3 py-2 text-[13px]"
               >
-                <span>{invite.email}</span>
+                <span className="min-w-0 truncate">{invite.email}</span>
                 <button
                   type="button"
                   onClick={() => void revoke(invite.id)}
-                  className="border-0 bg-transparent p-0 text-xs font-semibold text-state-overdue"
+                  className="flex-none border-0 bg-transparent p-0 text-xs font-semibold text-state-overdue"
                 >
                   Revoke
                 </button>
@@ -346,7 +399,7 @@ function DataSection() {
   return (
     <>
       <SectionHeading>Your data</SectionHeading>
-      <section className="flex items-center justify-between rounded-card border border-border bg-surface p-5">
+      <section className="flex flex-col items-start gap-3 rounded-card border border-border bg-surface p-5 sm:flex-row sm:items-center sm:justify-between">
         <p className="m-0 max-w-md text-xs text-body">
           Everything the Belastingdienst can ask for, as a machine-readable zip — your own
           7-year retention obligation, one download.

@@ -1,7 +1,13 @@
 import { Hono } from "hono";
+import { zValidator } from "@hono/zod-validator";
 import { eq } from "drizzle-orm";
 import { schema } from "@kwartaal/db/schema";
-import { meResponseSchema, newId, type MeResponse } from "@kwartaal/core";
+import {
+  meResponseSchema,
+  newId,
+  toggleExplainModeSchema,
+  type MeResponse,
+} from "@kwartaal/core";
 import type { AppEnv } from "../bindings";
 import { requireRole } from "../middleware/auth";
 import { toBusinessProfileDto } from "../lib/business-profile";
@@ -23,6 +29,10 @@ orgs.get("/me", async (c) => {
   if (!org) return c.json({ error: "org-not-found" }, 404);
 
   const [row] = await tenantDb.select(schema.businessProfiles);
+  const [membership] = await tenantDb.select(
+    schema.users,
+    eq(schema.users.id, session.userId),
+  );
   const hasProAccess = await computeEntitlement(tenantDb);
 
   const response: MeResponse = {
@@ -33,9 +43,29 @@ orgs.get("/me", async (c) => {
     deletionRequestedAt: org.deletionRequestedAt
       ? org.deletionRequestedAt.getTime()
       : null,
+    explainModeEnabled: membership?.explainModeEnabled ?? true,
   };
 
   return c.json(meResponseSchema.parse(response));
+});
+
+/**
+ * Any role (owner or bookkeeper) toggles their own reading preference —
+ * this is not an org-level setting, so `requireRole` is deliberately not
+ * applied here.
+ */
+orgs.patch("/me/explain-mode", zValidator("json", toggleExplainModeSchema), async (c) => {
+  const session = c.get("session");
+  const tenantDb = c.get("tenantDb");
+  const body = c.req.valid("json");
+
+  await tenantDb.update(
+    schema.users,
+    { explainModeEnabled: body.enabled },
+    eq(schema.users.id, session.userId),
+  );
+
+  return c.json({ explainModeEnabled: body.enabled });
 });
 
 /**

@@ -1768,16 +1768,454 @@ kwartaal.app>` (was a `.example` placeholder) across all three
    a clean-state 32-hits-in-60s count) before being fixed, per the
    systematic-debugging discipline this session followed throughout.
 
+## Mobile + responsiveness audit — Phase A (audit only, no code changes)
+
+Per explicit instruction: audit first, findings to PROGRESS.md, **STOP for
+confirmation before any remediation**. No code changed in this phase.
+
+**Methodology**: real local dev stack (`wrangler dev --config
+wrangler.e2e.toml` + `vite dev`, the same pairing the e2e suite uses),
+Playwright device emulation at 390/768/1280px, seeded Maya demo account for
+authenticated surfaces. 57 full-page screenshots + a `document.
+documentElement.scrollWidth` vs `clientWidth` measurement (objective
+horizontal-overflow detection, not eyeballed) captured **this session**
+against current HEAD (`42e64dd`), saved to `e2e/test-results/mobile-audit/`
+(gitignored, same convention as `visual-pass.spec.ts`'s own screenshots —
+inspect locally, not committed) plus `results.json` with the raw
+measurements for every shot. Every status below cites the specific
+screenshot file backing it, per the design-fidelity evidence standard
+(`VERIFICATION-PROTOCOL.md`). A repo-wide `grep` for Tailwind's `md:`/
+`sm:`/`lg:`/`xl:` breakpoint prefixes across every route, marketing page,
+and shell component returned **zero matches** — confirmed before touching
+a browser, then confirmed by what the browser actually renders.
+
+### Track A1 — the four phone-critical moments (`Kwartaal Mobile.dc.html`, 390px)
+
+#### Moment 1 — the reminder lands (Today, mobile)
+
+| #   | Spec element                                                                                             | Status        | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| --- | -------------------------------------------------------------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1.1 | Mobile Today card composition (one card, two-action pair)                                                | **Missing**   | `apps/web/src/routes/Today.tsx` has no mobile variant at all — same `HeroCard` renders at every viewport. `390-app-today.png`: the desktop card renders squeezed into ~166px next to a fixed 224px sidebar that never collapses.                                                                                                                                                                                                                    |
+| 1.2 | "Remind me at my laptop tonight" → schedules a same-day 19:00 reminder, reopens the checklist on desktop | **Missing**   | No such control exists in `Today.tsx`. Backend: `packages/db/src/schema.ts`'s `ReminderStage` (`packages/core/src/tax/reminders.ts:12`) is a closed union — `t14\|t7\|t2\|day\|overdue_1\|overdue_2\|overdue_3` — all deadline-relative, computed by `dueReminderStage`. There is no same-day/user-triggered/one-off kind, and nothing enqueues to `REMINDER_QUEUE` outside `scheduled.ts`'s hourly fan-out. Genuinely absent, not just unwired UI. |
+| 1.3 | "Start on the phone anyway" → enters the VAT checklist                                                   | **Partially** | `Today.tsx`'s existing "Preview the Q3 checklist" button already navigates to `/app/vat` — the destination exists, the mobile-specific framing/copy and the paired handoff choice do not.                                                                                                                                                                                                                                                           |
+| 1.4 | Set-aside progress register (bar, €X of €Y, "move €X more")                                              | **Partially** | `SetAsideCard` in `Today.tsx` shows a figure but not a progress-bar register against a target — different composition from the design's bar.                                                                                                                                                                                                                                                                                                        |
+| 1.5 | Hours tally with pace, on the Today card                                                                 | **Missing**   | No hours data appears anywhere on `Today.tsx`.                                                                                                                                                                                                                                                                                                                                                                                                      |
+| 1.6 | Bottom tab nav (Today/VAT/Money/Vault)                                                                   | **Missing**   | `apps/web/src/app/AppShell.tsx:72-114` is a single unconditional sidebar `<nav>`, `w-56` fixed, at every viewport — no bottom-bar variant. Same root cause as A3's dashboard findings below.                                                                                                                                                                                                                                                        |
+
+**Moment 1 overall: Missing.** The desktop screen exists and is reachable at 390px, but none of the mobile-specific composition or the handoff-reminder behavior does.
+
+#### Moment 2 — catch a receipt
+
+| #   | Spec element                                                                                       | Status                                   | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                          |
+| --- | -------------------------------------------------------------------------------------------------- | ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2.1 | Six-element checklist verified before save                                                         | **Fully Implemented** (correctly scoped) | `apps/web/src/routes/Vault.tsx`'s `ReceiptCapture` + `apps/api/src/routes/receipts.ts` implement the six-element checklist. The design's "verified live" / camera-reads-it framing is OCR — explicitly out of v1 scope per `KWARTAAL-BUILD-PLAN.md` locked decision #9 ("OCR on receipts... manual six-element checklist in v1"). Manual toggle-confirm is the correct v1 behavior, not a gap.                                                                                                    |
+| 2.2 | Camera-first capture (full-screen, dark, in-frame guide)                                           | **Missing**                              | `Vault.tsx:143-152`: plain `<input type="file" accept="image/jpeg,image/png,image/webp,application/pdf">`, no `capture` attribute, rendered as a small 150×200px thumbnail button inside the desktop Vault layout — not a full-screen mobile camera flow.                                                                                                                                                                                                                                         |
+| 2.3 | Missing element over €100 → "save with a note" (note stored with the photo) + Retake               | **Missing**                              | No €100 threshold logic anywhere in `Vault.tsx` or `receipts.ts`. No note field exists in the data model at all: `packages/core/src/contracts/vault.ts:71` — `checklistElementSchema = z.object({ confirmed: z.boolean() })`, nothing else. This is a backend gap, not just a missing UI state.                                                                                                                                                                                                   |
+| 2.4 | Success state: Vault storage confirmed, 7-year line, btw queued to the correct quarter's checklist | **Partially**                            | The Vault footer states the 7-year retention period (`Vault.tsx:81-84`) at the page level, not as a per-capture success confirmation. "btw queued to the correct quarter's checklist" is **Missing** — receipts (`schema.receipts`) and VAT expense lines (`schema.expenseLines`) are two unconnected tables; nothing links a captured receipt to a quarter's checklist. (Contrast: `StartupCostsCorner` in the same file _does_ create a real expense-line — the receipt-capture path does not.) |
+| 2.5 | "Catch another" loop                                                                               | **Partially**                            | `Vault.tsx:190-196` has "Add another," functionally equivalent, different framing.                                                                                                                                                                                                                                                                                                                                                                                                                |
+| 2.6 | Mobile layout                                                                                      | **Missing**                              | `390-app-vault.png`: `DataExportButton` text and the search input are visibly clipped off the right edge of the viewport — not just cramped, actually cut off.                                                                                                                                                                                                                                                                                                                                    |
+
+**Moment 2 overall: Missing.** The core checklist mechanic is correctly built to v1 scope; the mobile capture entry point, the note-fallback rule, and the VAT-quarter linkage are all absent, two of them at the data-model level.
+
+#### Moment 3 — an invoice is paid, the split ritual
+
+| #   | Spec element                                               | Status                | Evidence                                                                                                                                                                                                                                                                                        |
+| --- | ---------------------------------------------------------- | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 3.1 | Three-band split (yours / btw hatched-exact / reserve)     | **Fully Implemented** | `apps/web/src/routes/Money.tsx`'s `Splitter` calls the real `splitInvoice` from `@kwartaal/core` (`Money.tsx:5,73`) — same function the marketing calculator and the API's `/money/set-aside-entries` route use. Visual band composition matches.                                               |
+| 3.2 | Paid-invoice trigger framing ("A client just paid you €X") | **Missing**           | `Splitter` is a standalone manual calculator + logger (type an amount, pick a rate, log it) — nothing frames it as responding to a payment event.                                                                                                                                               |
+| 3.3 | Single combined "Move €X to the Taxes pot" instruction     | **Missing**           | Not present; `Money.tsx` shows the three band amounts separately, no combined-transfer instruction line.                                                                                                                                                                                        |
+| 3.4 | "I moved it — done" / "Remind me tonight" two-choice flow  | **Missing**           | `logSplit()` (`Money.tsx:78-101`) is a single "log it" action with no such choice.                                                                                                                                                                                                              |
+| 3.5 | Pinned-to-Today persistence for an unconfirmed split       | **Missing**           | `schema.setAsideEntries` (`packages/db/src/schema.ts:369-384`) has no status/pending/moved field of any kind — `totalCents`/`vatCents`/`reserveCents`/`rateBps`/timestamps only. There is nothing to pin; a logged entry is just a completed record, not a two-state (pending → confirmed) one. |
+| 3.6 | "No bank connection" honesty line                          | **Fully Implemented** | `Money.tsx:38-39`: "No bank connection — a 30-second ritual, not bookkeeping." present verbatim in spirit.                                                                                                                                                                                      |
+| 3.7 | Mobile layout                                              | **Missing**           | `390-app-money.png`: sidebar squeeze, same as Moment 1/2.                                                                                                                                                                                                                                       |
+
+**Moment 3 overall: Missing.** The math and the honesty line are right; the ritual's actual behavior (trigger framing, combined instruction, two-choice flow, and — most importantly — the pinned-persistence mechanic the task specifically asked me to verify) does not exist.
+
+#### Moment 4 — log the week's hours
+
+| #   | Spec element                                                | Status                                                                                                                         | Evidence                                                                                                                                                                                                                                 |
+| --- | ----------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 4.1 | Ring + tally vs. 1.225, synced to desktop urencriterium     | **Fully Implemented**                                                                                                          | `Vault.tsx`'s `HoursRing` (`Vault.tsx:209-318`) renders the ring and pulls from `useIncomeTax`, the same source the desktop income-tax studio's ring would use — "sync" is trivially true since there's one shared data source, not two. |
+| 4.2 | Week view, Mon–Sun, with per-day bars                       | **Missing**                                                                                                                    | No day-by-day breakdown anywhere — `HoursRing` shows only the running total, not a week grid.                                                                                                                                            |
+| 4.3 | +2u/+4u/+8u one-tap quick-add chips, with undo              | **Missing**                                                                                                                    | The only entry mechanism is a generic form (date field + numeric hours field + optional note + Save), `Vault.tsx:276-315` — not one-tap chips.                                                                                           |
+| 4.4 | Pace-for-target + zelfstandigenaftrek €1.200 unlock framing | **Missing**                                                                                                                    | Copy present is generic ("N hours to go. The Belastingdienst may ask for this log.") — no pace projection, no €1.200 framing.                                                                                                            |
+| 4.5 | Exportable from the Vault                                   | **Fully Implemented**                                                                                                          | `apps/api/src/queue.ts`'s `buildExportZip` (`queue.ts:183-241`) includes `hours-entries.json` in every export; `DataExportButton` is on the Vault page.                                                                                  |
+| 4.6 | Mobile layout                                               | **Missing** (inferred from the shared root cause; not independently screenshotted this session — see "Not yet measured" below) |                                                                                                                                                                                                                                          |
+
+**Moment 4 overall: Missing.** The ring and the export path are correctly shared with desktop; the entire week-ritual composition (chips, day bars, pace/unlock framing) does not exist — the current UI is a generic logging form, not the described 20-second ritual.
+
+### Track A2 — Marketing Home (`Kwartaal Site Home.dc.html`)
+
+**Desktop (1280px) — binding:**
+
+| Spec element                                                                                     | Status                          | Evidence                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
+| ------------------------------------------------------------------------------------------------ | ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hero + mid-October year timeline                                                                 | **Fully Implemented**           | `1280-home.png` vs. design: composition, spacing, and states (Q1/Q2 settled, Q3 due-in-12-days, Q4/annual future) match closely.                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
+| Live split-calculator, wired to the real core function                                           | **Fully Implemented**           | `apps/web/src/components/SetAsideCalculator.tsx:2,28` imports and calls `splitInvoice` from `@kwartaal/core` directly — confirmed by reading the component, not assumed from the visual. Not a lookalike.                                                                                                                                                                                                                                                                                                                                                                           |
+| Reminder-email mock                                                                              | **Partially**                   | Structure/copy match. Sender shown is `post@kwartaal.nl` (`Home.tsx:136`) — this is the design's own stale placeholder, copied verbatim. Per the operator's ruling, the _design's_ domain is a design-time artifact and is explicitly not itself a finding — but the ruling's premise is that the implementation renders the real configured sender (`hello@mail.kwartaal.app`, set in the Auth-surfaces pillar). It doesn't: the code still hardcodes the design's placeholder. This is a real, trivial-to-fix finding, not the domain-mismatch non-finding the ruling pre-empted. |
+| Mirror/why section, term-chip vocabulary section, "what Kwartaal is not," testimonial, final CTA | **Fully Implemented**           | All present, `1280-home.png`.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| Nav                                                                                              | **Fully Implemented** at 1280px | Matches design. (Fails to adapt below ~1000px — see mobile, below, and A3.)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+
+**Mobile (390px) — binding, per the design's own explicit "Mobile pass" annex (`Kwartaal Site Home.dc.html` lines 220-258, a full separate composition, not a responsive-CSS afterthought):**
+
+| Spec element                                                                                                          | Status      | Evidence                                                                                                                                                                                                                                                      |
+| --------------------------------------------------------------------------------------------------------------------- | ----------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Nav collapses to mark + condensed "Start free" + hamburger                                                            | **Missing** | `apps/web/src/marketing/MarketingLayout.tsx` renders the same five-link desktop nav row unconditionally. `390-home.png`: nav items overflow the viewport horizontally — measured `scrollWidth: 627px` vs `clientWidth: 390px` (`results.json`).               |
+| Condensed single-column hero                                                                                          | **Missing** | Hero itself doesn't overflow, but nothing about it is the annex's condensed mobile composition — it's the desktop hero at a narrow width.                                                                                                                     |
+| Condensed year-timeline list (icon+label+date+status in a single-column row list, not the desktop's horizontal strip) | **Missing** | `Home.tsx`'s timeline is one `flex justify-between` row (`Home.tsx:58`) — no mobile list variant. Visually cramped at 390px but not the annex's specific list composition.                                                                                    |
+| Condensed split-teaser card ("A client just paid you €2.420?" one-line summary)                                       | **Missing** | Same full desktop calculator renders at 390px, not the annex's simplified read-only teaser.                                                                                                                                                                   |
+| "What Kwartaal does" 2-column feature rows stack to one column                                                        | **Missing** | `Home.tsx:280` — `grid grid-cols-2` with no responsive variant. `390-home.png`: rows render as two cramped side-by-side columns; body copy wraps 1-2 words per line and is effectively unreadable (e.g., the "Btw you received / paid / owe" figures column). |
+| "What Kwartaal is not" 220px+1fr grid stacks                                                                          | **Missing** | `Home.tsx:206` — `grid grid-cols-[220px_1fr]`, no responsive variant. Same severe wrap in `390-home.png`.                                                                                                                                                     |
+
+**Track A2 overall: Desktop is Fully Implemented (one Partial: sender domain). Mobile is Missing** — the design specifies an exact, different mobile composition, and the current implementation is not a simplified adaptation of it but an un-adapted reflow of the desktop grid that breaks.
+
+### Track A3 — responsiveness sweep (390/768/1280px, all remaining surfaces)
+
+**Objective overflow measurement** (`document.documentElement.scrollWidth` vs `clientWidth`, all 57 shots in `results.json`): **zero occurrences of `md:`/`sm:`/`lg:`/`xl:` anywhere in `apps/web/src`** is the single root cause behind every finding in this track.
+
+| Surface group                                                                                                 | 390px                                                                                                                                                                                                                                                                                                                                                                                                                                                                     | 768px                                                                                                                                               | 1280px            | Evidence                                                                                                                                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| All 10 marketing pages (Home, Pricing, How it works, Guide, About, Companion, Privacy, Terms, Dpa, Impressum) | **Missing** — horizontal overflow on every single one (`scrollWidth` 493–627px vs 390px)                                                                                                                                                                                                                                                                                                                                                                                  | Fully Implemented — no overflow, and `768-home.png` renders acceptably (coincidental: fixed grid columns still fit at 768px, not a real breakpoint) | Fully Implemented | `results.json`; visually confirmed on Home and Pricing (`390-home.png`, `390-pricing.png` — Pricing's two-card grid renders as two overlapping cramped columns instead of stacking, and the deductibility diagram's figures become illegible)                                                                                                              |
+| All 7 dashboard pages (Today, VAT, Income tax, Money, Vault, Glossary, Settings)                              | **Missing** — no numeric overflow (`AppShell`'s fixed 224px sidebar + `flex-1` main squeezes rather than overflows the page) but severely broken: confirmed **clipped** content, not just cramped, on Vault (search input + export button cut off, `390-app-vault.png`), Vat (checklist item text cut off, `390-app-vat.png`), and Settings (`Legal form`/`KOR Off…`/`Bookkeeper handoff` labels and the `Persistent` cadence button all cut off, `390-app-settings.png`) | Fully Implemented — `768-app-today.png` renders correctly, sidebar + content both readable                                                          | Fully Implemented | `results.json` + the four screenshots cited                                                                                                                                                                                                                                                                                                                |
+| Auth (Sign in, Sign up, Forgot password)                                                                      | **Fully Implemented**                                                                                                                                                                                                                                                                                                                                                                                                                                                     | Fully Implemented                                                                                                                                   | Fully Implemented | `results.json` — zero overflow at any viewport; `AuthShell`'s single centered-column composition is inherently responsive without any breakpoint classes, confirmed by inspection. Auth surfaces need no remediation.                                                                                                                                      |
+| Bottom nav / hamburger drawer anywhere in the app shell                                                       | **Missing**                                                                                                                                                                                                                                                                                                                                                                                                                                                               | —                                                                                                                                                   | —                 | `AppShell.tsx` has exactly one `<nav>`, unconditional.                                                                                                                                                                                                                                                                                                     |
+| Tap targets ≥44px                                                                                             | **Not yet measured**                                                                                                                                                                                                                                                                                                                                                                                                                                                      |                                                                                                                                                     |                   | Not independently measured this session (no automated bounding-box pass run) — several desktop buttons use `py-2`/`py-2.5` (~36-40px computed height), which is under 44px, but I have not confirmed this with a rendered measurement. Flagging as unresolved rather than asserting a status without evidence, per rule zero.                              |
+| Hover-only controls on touch                                                                                  | **Not yet measured**                                                                                                                                                                                                                                                                                                                                                                                                                                                      |                                                                                                                                                     |                   | Not audited this session. `hover:` classes are used extensively for desktop affordances (e.g., nav links, row actions); whether any control is hover-_only_ reachable (no visible/tappable equivalent) was not systematically checked.                                                                                                                     |
+| Forms / correct mobile keyboards                                                                              | **Partially assessed**                                                                                                                                                                                                                                                                                                                                                                                                                                                    |                                                                                                                                                     |                   | Spot-checked only: `Money.tsx`'s amount input correctly uses `inputMode="decimal"`; `Vault.tsx`'s date fields correctly use `type="date"`. Not exhaustively checked across every form on every surface.                                                                                                                                                    |
+| VAT checklist genuinely completable on a phone (plan's explicit stance)                                       | **Missing**                                                                                                                                                                                                                                                                                                                                                                                                                                                               |                                                                                                                                                     |                   | Currently false — `390-app-vat.png` shows clipped, unreadable checklist content under the same un-adapted sidebar shell as every other dashboard page.                                                                                                                                                                                                     |
+| Annual studio (Income tax) may stay desktop-oriented but must degrade readably                                | **Missing** (degrades unreadably, not readably)                                                                                                                                                                                                                                                                                                                                                                                                                           |                                                                                                                                                     |                   | Same shared root cause; not individually screenshotted this session beyond the overflow measurement, which shows no numeric overflow but (by the same pattern confirmed on four sibling pages under the identical shell) is expected to share the clipping/squeeze failure. Flagged for confirmation in Phase B rather than asserted from inference alone. |
+
+### Summary
+
+- **26 individually-classified spec elements across A1's four moments: 3 Fully Implemented, 6 Partially, 17 Missing.** Two of the Missing findings (3.5's pinned-persistence field, 2.3's note field) are data-model gaps, not just UI — Phase B's "test-first for behaviors" instruction anticipated exactly this.
+- **A2 desktop: Fully Implemented plus one trivial Partial (sender domain). A2 mobile: Missing in full** — a completely specified, different mobile composition exists in the design and is 0% built.
+- **A3: every marketing page and every dashboard page fails at 390px** (overflow on marketing, clipping on dashboard) for the same single root cause — no responsive breakpoints exist anywhere in `apps/web/src`. Auth is the one bright spot: fully responsive already, by construction, needing no remediation. Tap-target sizing and hover-only-control audits are explicitly unresolved (not measured), not silently assumed passing.
+- **No breakpoint improvisation to flag** — there's no _existing_ breakpoint logic anywhere to contradict; the finding is its total absence, not a wrong one.
+
+### Phase B readiness note
+
+Per the operator's plan, Phase B is test-first for the three genuinely new behaviors (19:00 handoff reminder via a new `ReminderStage` value reusing the existing cron/queue/`reminder_logs` path; pinned-split persistence via a new status field on `setAsideEntries`; receipt note-fallback via a new field on the checklist element schema), spec-fidelity work for A1/A2, and principle-conformance responsive work for A3 using only existing tokens/components — composing a mobile bottom-nav and a marketing hamburger nav from the established system, not inventing a new visual language. Nothing in this audit surfaced a surface that "genuinely needs a designed mobile variant" beyond what the two binding specs already cover — no NEEDS-DESIGN candidates identified.
+
+**Stopping here for confirmation before Phase B, per instruction.**
+
+## Mobile + responsiveness — Phase B (implementation) — complete
+
+Per the operator's "Proceed with Phase B" go-ahead. Gate green from clean:
+`npm run typecheck` (all 4 workspaces), `npm run test` (67 API + 16 web,
+all passing), `npm run lint` (0 errors), `npm run token-check` (0
+violations), `npm run brand-check` (0 violations), `npm run format:check`
+(clean), and the full Playwright suite including the 23 new tests below
+(47/47 passing, `e2e/tests/mobile-responsive.spec.ts`).
+
+### Test-first behaviors (all three, backend + real tests, no new machinery)
+
+1. **19:00 handoff reminder.** `packages/core/src/tax/reminders.ts`'s
+   `ReminderStage` gained `"same_day_1900"` (deliberately excluded from
+   `CADENCE_STAGES` — it's user-triggered, not day-offset-computed).
+   `deadlines.same_day_reminder_requested_at` (nullable timestamp,
+   migration `0004_lowly_layla_miller.sql`) is set by
+   `POST /deadlines/:id/remind-tonight` and cleared by
+   `DELETE /deadlines/:id/remind-tonight` (undo) or by the consumer once
+   sent. `scheduled.ts`'s `fanOutReminders` gained
+   `maybeEnqueueSameDayStage`: fires once the Amsterdam clock reaches
+   19:00 on the _same_ Amsterdam calendar day the request was made (new
+   `amsterdamHour` helper in `packages/core/src/tax/dates.ts`) — a request
+   left unactioned past that night lapses rather than firing later.
+   `queue.ts`'s `handleReminderMessage` clears the flag after the
+   idempotent `reminder_logs` insert. Tests:
+   `apps/api/src/integration/same-day-reminder.test.ts` (3 tests) — real
+   POST/DELETE through the Hono app, real `worker.scheduled()` ticks
+   time-traveled to before/after 19:00 Amsterdam via `scheduledTime`, real
+   `worker.queue()` drain, asserting the `reminder_logs` row, the email
+   send, and the flag-clear all actually happen exactly once.
+
+2. **Pinned-split persistence.** `setAsideEntries.status`
+   (`"pending" | "confirmed"`, same migration) — "I moved it — done"
+   creates `confirmed`; "Remind me tonight" creates `pending`, pinning the
+   entry to Today until confirmed. `PATCH /money/set-aside-entries/:id`
+   (new) flips pending → confirmed. Tests:
+   `apps/api/src/integration/set-aside-status.test.ts` (4 tests) — default
+   status, pending persistence on a fresh read, confirm transition, 404 on
+   a missing entry.
+
+3. **Receipt note-fallback rule.** `receipts.amountCents` +
+   `receipts.note` (same migration), `RECEIPT_NOTE_FALLBACK_THRESHOLD_CENTS
+= 10000` (€100) in `packages/core/src/contracts/vault.ts`.
+   `PATCH /receipts/:id/details` (new) sets either field. Tests:
+   `apps/api/src/integration/receipt-note-fallback.test.ts` (4 tests) —
+   amount+note set together, amount-only (note stays null), empty-note
+   rejection (min length 1), 404 on a missing receipt.
+
+Explicitly **not** built: the "btw queued to the correct quarter's
+checklist" linkage flagged Missing in Phase A's 2.4 (connecting a captured
+receipt to a VAT expense line) — this is a genuinely separate,
+larger feature (receipt-to-expense-line auto-connection), not one of the
+three named test-first behaviors, and building it now would have been
+scope creep. Still open; not attempted.
+
+### A1 — the four phone-critical moments, spec fidelity
+
+- **Moment 1 (Today).** `apps/web/src/routes/Today.tsx`'s `HeroCard` now
+  renders the two-choice handoff pair ("Remind me at my laptop tonight" /
+  "Start on the phone anyway") whenever the focus deadline is urgent and
+  not overdue, backed by the real `remind-tonight` endpoints; the
+  confirmed state shows "Reminder set for 19:00…" + a working Undo.
+  `SetAsideCard` now renders a real progress-bar register (confirmed vs.
+  confirmed+pending `setAsideEntries` totals) with "Move €X more and QN is
+  covered" — the target is the sum of this quarter's _logged_ splits, not
+  a fabricated number (see caveat below). A new `HoursTallyRow` ("Hours: N
+  of 1.225 — on pace" + "Log →") reads the same `useIncomeTax` source the
+  Vault ring uses. A new `PinnedSplitsBanner` lists pending splits with an
+  inline "I moved it — done" confirm. `AppShell.tsx` gained the
+  Today/VAT/Money/Vault bottom tab bar (`md:hidden`, ≥44px targets, a VAT
+  accent dot when a btw deadline is within 14 days), sidebar hidden below
+  `md`.
+  **Known limitation, not silently glossed over:** `setAsideEntries` has
+  no `quarterId` column, so the progress register sums _all_ entries
+  regardless of quarter rather than just the focus quarter's — correct
+  once a quarter closes and its entries stop accruing, but a
+  multi-quarter edge case (a stale prior-quarter pending entry) would
+  currently bleed into the running total. Flagged for a future quarter-fk
+  addition; out of scope for this phase (not one of the three named
+  behaviors, and adding a migration for it here would have been scope
+  creep beyond "make the described feature real with what already
+  exists").
+- **Moment 2 (Vault — catch a receipt).** `ReceiptCapture` now sets
+  `capture="environment"` on the file input (camera-first on mobile
+  browsers), added an Amount field, the €100 note-fallback warning +
+  "Save with a note"/"Retake" flow wired to the new
+  `PATCH /receipts/:id/details`, and a real success state ("In the Vault.
+  Kept for 7 years…" + amount + "Catch another receipt", matching the
+  design's copy).
+- **Moment 3 (Money — split ritual).** `Splitter` now shows the
+  paid-invoice trigger framing ("A client just paid you €X?"), a combined
+  "Move €X to the Taxes pot" instruction, and the "I moved it — done" /
+  "Remind me tonight" two-choice flow (posting `status: "confirmed" |
+"pending"`), with distinct confirmation copy for each. Pots and VA
+  sections' fixed grids now stack on mobile.
+- **Moment 4 (Vault — log hours).** `HoursRing` replaced by
+  `HoursWeekCard`: the ring+tally (unchanged data source), a Mon–Sun day
+  list with per-day bars (today highlighted in accent), +2u/+4u/+8u
+  quick-add chips (each posts a real `hoursEntry`, with "undo" removing
+  the just-added one — the underlying data model is an append log, so
+  "change" reads as "log another entry," not a per-day upsert that
+  doesn't exist server-side), and pace/unlock framing ("On pace for
+  {month}… N hours to go unlocks the zelfstandigenaftrek — €1.200 off
+  your profit"). A collapsed "Log a different day →" preserves the old
+  date/hours/note form for entries chips can't express (backdating,
+  notes).
+
+### A2 — Marketing Home, spec fidelity
+
+Sender domain fixed (`post@kwartaal.nl` → `hello@mail.kwartaal.app`,
+matching the real configured `EMAIL_FROM`; same fix applied to the
+`How it works` step-1 email mock, which had the identical stale
+placeholder). Built the design's separate mobile-pass composition rather
+than reflowing the desktop one: hamburger nav (`MarketingLayout.tsx`,
+44px target, `aria-expanded`/`aria-controls`, closes on link click), a
+condensed single-column year-timeline list at `<md` (icon+label+date+status
+per row) vs. the desktop horizontal strip, and a non-interactive
+`SetAsideTeaser` (real `splitInvoice` on a fixed example, per the design's
+explicit "not the full calculator" instruction) swapped in for the full
+`SetAsideCalculator` below `md`. `FeatureRow`'s and "what Kwartaal is
+not"'s fixed grids now stack below `md`.
+
+### A3 — responsiveness sweep
+
+Applied `md:`-prefixed Tailwind utilities (existing tokens/components
+only) across every surface Phase A's `results.json` flagged: all 10
+marketing pages (container padding, heading sizes, every fixed
+`grid-cols-[…]`/`grid-cols-N` now stacks below its breakpoint — Pricing's
+two-card grid and deductibility diagram, HowItWorks' rubriek table and
+filed/paid grid, Companion's division-of-labor grid, About's founder
+grid, LegalPage's numbered-section grid); all 7 dashboard pages (Vat's
+three data-table grids narrowed+stacked rather than clipped, IncomeTax's
+waterfall/bracket grids stack below `sm`, Settings' label/value rows wrap
+instead of clipping, invite rows truncate long emails instead of pushing
+the Revoke button off-screen). Glossary needed no responsive fixes (already
+single-column) — see the Glossary bug section below for its _unrelated_,
+non-responsive defect. Auth confirmed still needing none (Phase A's own
+finding).
+
+**Still open, honestly flagged rather than silently asserted as passing:**
+tap-target sizing was **not** exhaustively re-measured across every
+pre-existing button (only new/touched controls got explicit `min-h-[44px]`
+this phase); hover-only-control reachability on touch was **not**
+audited. Both were "Not yet measured" in Phase A and remain so — narrowed
+in scope (new controls comply) but not closed out.
+
+### e2e evidence
+
+`e2e/tests/mobile-responsive.spec.ts` (23 tests, all passing against the
+real dev stack — `wrangler dev` + Vite, nothing mocked): a
+no-horizontal-scroll assertion (`scrollWidth` vs `clientWidth`, same
+objective technique as the Phase A audit script) across all 10 marketing
+pages and all 7 dashboard pages at 390px; Home at 390 (hamburger present,
+desktop nav links hidden until opened) and 1280 (full nav, hamburger
+hidden); and the four moments end to end at 390px as the seeded Maya
+account — including a real remind-tonight → confirmed-state → undo round
+trip (with the focus deadline's due date forced into the urgent window
+via a direct D1 write for determinism, the same `d1Execute` pattern
+`reminder-email.spec.ts` already used), a real receipt upload → amount
+over €100 → note-fallback → success-state round trip, a real split-ritual
+→ "remind me tonight" → pinned-card-on-Today round trip, and a real
+quick-add-chip → logged → undo round trip.
+
+## Glossary bug — empty glossary ("No terms match \"\"" with no search) — fixed
+
+Diagnosed in the specified order; **root cause was #2, env-inconsistent
+seeding** (not #1, tenant-scope — that path was already correct).
+
+1. **Data path — ruled out.** `apps/api/src/routes/glossary.ts` already
+   reads `GlossaryTerm` via `tenantDb.global`, with a comment explicitly
+   documenting why. `income-tax-aggregate.ts`'s `TaxFigures` read is the
+   same. `packages/db/src/tenant.test.ts` already registers both as
+   non-tenant tables and asserts `TenantDb` throws a `tenant guard` error
+   if either is ever passed to a tenant-scoped call — the registry
+   already would have caught this class of mistake; no strengthening
+   needed.
+2. **Seed — the actual cause, confirmed by querying real D1.** Local: 9
+   glossary rows (`wrangler d1 execute kwartaal --local`). Staging: 9
+   rows (`--remote --env staging`). **Production: 0 rows** — confirmed
+   directly (`--remote --env production`), also 0 `tax_figures` rows.
+   Root cause: `packages/db/seed.sql` bundled genuinely-global reference
+   data (glossary terms, tax figures) together with Maya's org-specific
+   demo data in one file; `docs/deploy-runbook.md`'s "Production D1:
+   migrations applied (schema only) — intentionally left unseeded" was
+   the right call for demo data and the wrong one for reference data real
+   users need regardless of any demo account. (The runbook's own open
+   checklist already flagged the `tax_figures` half of this — "TaxFigures
+   2026 row seeded into the production D1" — but not the glossary half;
+   this was a real, previously-untracked gap.)
+   - **Fix:** split reference data into a new `packages/db/seed-reference-data.sql`
+     (idempotent — `INSERT OR IGNORE`, keyed on each table's real
+     primary key — safe to re-run against any environment any number of
+     times), which must apply before `seed.sql` (whose
+     `tax_year_profiles` FKs to `tax_figures(year)`).
+     `apps/api/package.json`'s `db:local:reset` now applies it first; a
+     new `db:seed:reference-data` script applies just that file. Applied
+     directly to production (`wrangler d1 execute kwartaal-production
+--env production --remote --file=packages/db/seed-reference-data.sql`) —
+     verified after: production now has 9 glossary rows and 1 tax_figures
+     row, matching staging and local. **The live defect is fixed as data
+     — the code fix below (the readiness check, the UI bug) still needs
+     its normal Worker deploy to reach production.**
+   - **Health-adjacent check, added:** `apps/api/src/routes/health.ts`'s
+     `/health/ready` now also checks `glossary_terms` is non-empty
+     (`checks.referenceData`), 503 if not — "an empty glossary is a
+     deploy defect, not a valid ready state," not just DB reachability.
+     Tests: `apps/api/src/integration/health-readiness.test.ts` (2 tests,
+     real D1 — asserts 503 with an empty table and 200 once a row
+     exists).
+3. **UI empty-state bug — real, fixed regardless of #1/#2.**
+   `apps/web/src/routes/Glossary.tsx`'s no-match message was gated only
+   on `filtered.length === 0`, with no check that the query was actually
+   non-empty — so an empty `terms` list (loading-elsewhere edge case, or
+   exactly the production defect above) rendered `No terms match ""`
+   instead of an (empty) full list. Fixed: the message now requires
+   `trimmedQuery.length > 0` too. Tests:
+   `apps/web/src/routes/Glossary.test.tsx` (3 tests, RTL + mocked
+   `fetch`) — full list with no query and never the no-match message,
+   filtering narrows correctly, no-match shows only for a genuinely
+   unmatched non-empty query and clears back to the full list when the
+   query is cleared.
+   `apps/api/src/integration/glossary.test.ts` (2 tests, real D1) — an
+   org user reads back seeded terms through the real route; two unrelated
+   orgs see identical global content.
+
+**D-finding standard gains a criterion.** Phase A's audit never
+screenshotted `/app/glossary` with the query in mind — its Glossary entry
+in `visual-pass.spec.ts` only asserts the heading renders, which would
+pass identically whether the glossary held 9 terms or 0. This bug would
+have shipped invisibly past that check. Recorded for the Phase 1
+VERIFICATION-PROTOCOL.md audit below (as a D-finding): **for
+content-bearing screens, "seeded content visible" is now a required
+criterion alongside composition — a compositionally-correct-but-empty
+screen is a Partial/Still Open finding, not a pass.**
+
+Gate green (typecheck, 71 API + 19 web unit/integration tests, lint,
+token-check, brand-check, format:check, 47/47 e2e) after this fix, same
+run as the rest of Phase B.
+
+## VERIFICATION-PROTOCOL.md audit — cycle 1 complete, see AUDIT-REPORT.md
+
+Full detail lives in `AUDIT-REPORT.md` (not duplicated here); summary:
+
+- **Definition of done, all 26 clauses individually verified**: 15 Fully
+  Resolved, 8 Partially Resolved, 3 Still Open/Deferred (Stripe and
+  Sentry round-trips — credential-blocked, consistent with every prior
+  mention in this file).
+- **Explain Mode built from scratch** (was 0% built): `users.explainModeEnabled`
+  (migration `0005_busy_roughhouse.sql`, default true), `GET /orgs/me` +
+  `PATCH /orgs/me/explain-mode`, `ExplainModeContext` + `<ExplainNote>`,
+  a Settings toggle, applied to Today's three design-specified ※ asides
+  verbatim. 4 API tests + 5 web unit tests + 1 real-browser e2e test
+  (proves the toggle survives sign-out/sign-in against the real backend).
+  Onboarding's three design-specified notes are not yet built — see
+  AUDIT-REPORT.md's Escalation section, recommended as next session's
+  first item.
+- **A real bug found and fixed via test-first verification**:
+  `POST /export-jobs` was wrongly gated behind the Pro-entitlement check,
+  contradicting the Definition of Done's explicit "trial data remains
+  readable and exportable... behind the gate" — a lapsed trial user
+  could not request an export of their own data. Fixed in
+  `apps/api/src/index.ts` (removed `requireProForMutations` from the
+  export-jobs mount, matching the existing billing carve-out); bookkeeper
+  role-based blocking on the same route is untouched and still correctly
+  enforced (`bookkeeper-role.test.ts`, re-verified).
+- **Two regressions found and fixed**: `PinnedSplitsBanner` (new this
+  Phase B) had no cap and could grow unboundedly (found via a
+  design-fidelity screenshot showing 7 stacked cards from accumulated
+  test data) — now caps at 3 with a reveal-the-rest link. A Phase B e2e
+  test was silently mutating Maya's canonical demo deadline without
+  restoring it, corrupting the shared local demo account's fidelity to
+  the seed's October date for every subsequent viewer — fixed to restore
+  state in a `finally` block.
+- **One pre-existing, unrelated flake found and fixed** during gate
+  verification: `reminder-email.spec.ts` computed its seeded deadline's
+  "+7 days" in raw UTC instead of Amsterdam calendar days, off-by-one
+  whenever the test happens to run between 00:00–02:00 Amsterdam time —
+  root-caused via the fan-out's own log output, fixed to use the same
+  Amsterdam-calendar pattern every other test in the suite already uses.
+- **Two items escalated to the operator** (not resolvable by further
+  unilateral code changes): F-002, the demo's "mid-October, byte-identical"
+  claim is structurally in tension with real-wall-clock day-counting
+  outside a narrow window each October — needs a product decision (a
+  demo-clock feature, or reword the clause); F-021, `orgId` in production
+  `wrangler tail` logs is code- and locally-proven but not independently
+  observed live in production, since doing so would require creating a
+  real production account.
+- Gate green from clean, post-remediation: typecheck (4 workspaces),
+  79 API + 27 web unit/integration tests, lint, token-check, brand-check,
+  format:check, axe-core a11y (10/10), Playwright e2e (48/48),
+  `wrangler deploy --dry-run`.
+
 ## Next session
+
+**Current priority (post-VERIFICATION-PROTOCOL cycle 1 — see the section
+above and AUDIT-REPORT.md):**
+
+1. Deploy this session's Worker code changes to staging/production (the
+   `explainModeEnabled` migration, the export-jobs entitlement-gate fix,
+   and everything else in this session's diff are committed but not yet
+   deployed — the production D1 _data_ fix for the Glossary bug was
+   applied directly this session, but the _code_ changes, including the
+   new `/health/ready` reference-data check, have not been).
+2. Onboarding's three Explain notes (design-specified copy already
+   identified, `Kwartaal Onboarding.dc.html` lines 86/123/154 — same
+   shape of work as Today's, already done).
+3. The two escalated product decisions in AUDIT-REPORT.md's Escalation
+   section (F-002's demo-clock question, F-021's production-log
+   verification) — need an operator call, not more code.
+
+**Earlier priority list (superseded in part — items 1 below are already
+done; kept for history):**
 
 Pillar 6 and the Auth surfaces pillar are both done; staging and
 production are **real, deployed, and verified** (see "Environment" above).
 What remains is entirely credential- or operator-gated, not code:
 
-1. Attach the two Pages custom domains (`kwartaal.app` →
-   `kwartaal-production`, `staging.kwartaal.app` → `kwartaal-staging`) via
-   the Cloudflare dashboard, then drop each environment's `.pages.dev`
-   entry from its `APP_ORIGIN`.
+1. ~~Attach the two Pages custom domains~~ — **done**, see "Environment."
 2. Set real `EMAIL_ALLOWLIST` addresses for staging so reminder-email
    (and now magic-link/reset/invite-email) testing can actually deliver
    somewhere.

@@ -15,5 +15,6 @@ export const deadlineRowSchema = z.object({
   dueDate: isoDateSchema,
   quarterId: z.string().nullable(),
   dismissedAt: z.number().int().nullable(),
+  sameDayReminderRequestedAt: z.number().int().nullable(),
 });
 export type DeadlineRow = z.infer<typeof deadlineRowSchema>;

@@ -3,6 +3,7 @@ import { zValidator } from "@hono/zod-validator";
 import { and, eq } from "drizzle-orm";
 import { schema } from "@kwartaal/db/schema";
 import {
+  confirmSetAsideEntrySchema,
   createPotSchema,
   createSetAsideEntrySchema,
   deadlinesForYear,
@@ -101,17 +102,54 @@ money.post(
       vatCents: split.vatCents,
       reserveCents: split.reserveCents,
       rateBps: body.reserveRateBps,
+      status: body.status,
     });
     await audit(tenantDb, {
       actor: c.get("session").userId,
       action: "set-aside-entry.created",
       target: id,
+      meta: { status: body.status },
     });
     const [row] = await tenantDb.select(
       schema.setAsideEntries,
       eq(schema.setAsideEntries.id, id),
     );
     return c.json(setAsideEntryDto(row!), 201);
+  },
+);
+
+/** "I moved it — done" resolving a pinned split: flips a pending entry to confirmed. */
+money.patch(
+  "/set-aside-entries/:id",
+  requireRole("owner"),
+  zValidator("json", confirmSetAsideEntrySchema),
+  async (c) => {
+    const tenantDb = c.get("tenantDb");
+    const id = c.req.param("id");
+    const body = c.req.valid("json");
+
+    const [existing] = await tenantDb.select(
+      schema.setAsideEntries,
+      eq(schema.setAsideEntries.id, id),
+    );
+    if (!existing) return c.json({ error: "set-aside-entry-not-found" }, 404);
+
+    await tenantDb.update(
+      schema.setAsideEntries,
+      { status: body.status },
+      eq(schema.setAsideEntries.id, id),
+    );
+    await audit(tenantDb, {
+      actor: c.get("session").userId,
+      action: "set-aside-entry.confirmed",
+      target: id,
+    });
+
+    const [row] = await tenantDb.select(
+      schema.setAsideEntries,
+      eq(schema.setAsideEntries.id, id),
+    );
+    return c.json(setAsideEntryDto(row!));
   },
 );
 

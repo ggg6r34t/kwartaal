@@ -34,5 +34,9 @@ export const meResponseSchema = z.object({
   /** Computed server-side via hasProAccess — the frontend never re-derives entitlement itself. */
   hasProAccess: z.boolean(),
   deletionRequestedAt: z.number().int().nullable(),
+  /** The "Explain notes" ※ asides (docs/design's Learn layer) — default-on, per-user, toggled from Settings. */
+  explainModeEnabled: z.boolean(),
 });
 export type MeResponse = z.infer<typeof meResponseSchema>;
+
+export const toggleExplainModeSchema = z.object({ enabled: z.boolean() });

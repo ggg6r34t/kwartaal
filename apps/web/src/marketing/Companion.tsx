@@ -4,12 +4,12 @@ import { MarketingLayout } from "./MarketingLayout";
 export function Companion() {
   return (
     <MarketingLayout current="/companion">
-      <div className="mx-auto max-w-[1120px] px-10 py-16">
+      <div className="mx-auto max-w-[1120px] px-5 py-10 sm:px-10 sm:py-16">
         <div className="mb-14 max-w-[640px]">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-accent">
             Kwartaal + your bookkeeping tool
           </div>
-          <h1 className="m-0 mb-4 text-[42px] font-semibold leading-tight tracking-tight">
+          <h1 className="m-0 mb-4 text-[28px] font-semibold leading-tight tracking-tight sm:text-[42px]">
             Keep your tools. Add the understanding.
           </h1>
           <p className="m-0 text-base leading-relaxed text-body">
@@ -18,7 +18,10 @@ export function Companion() {
           </p>
         </div>
 
-        <section aria-label="Division of labor" className="mb-4 grid grid-cols-2 gap-5">
+        <section
+          aria-label="Division of labor"
+          className="mb-4 grid grid-cols-1 gap-5 md:grid-cols-2"
+        >
           <div className="rounded-card border border-border bg-surface p-8">
             <div className="mb-5 text-[11px] font-semibold uppercase tracking-wide text-faint">
               Your bookkeeping tool does
@@ -147,7 +150,7 @@ export function Companion() {
           </div>
         </section>
 
-        <div className="mt-16 rounded-card border border-border bg-surface p-10 text-center">
+        <div className="mt-16 rounded-card border border-border bg-surface p-6 text-center sm:p-10">
           <h2 className="m-0 mb-2.5 text-2xl font-semibold tracking-tight">
             Connect your tool in the first ten minutes.
           </h2>

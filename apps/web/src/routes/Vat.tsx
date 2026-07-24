@@ -292,7 +292,7 @@ function QuarterChecklist({
         <p className="px-6 pb-1 text-xs text-body">
           What came in, what went out, what you owe.
         </p>
-        <div className="grid grid-cols-2 gap-3.5 px-6 pt-2">
+        <div className="grid grid-cols-1 gap-3.5 px-6 pt-2 sm:grid-cols-2">
           <div className="rounded-control border border-border-hairline p-4">
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
               Btw you received
@@ -612,8 +612,8 @@ function LineEntry({
   return (
     <div>
       {lines.length > 0 && (
-        <div className="px-6">
-          <div className="grid grid-cols-[1fr_100px_60px_100px] gap-3 border-b border-border-hairline pb-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
+        <div className="px-3 sm:px-6">
+          <div className="grid grid-cols-[1fr_54px_34px_60px] gap-1.5 sm:grid-cols-[1fr_100px_60px_100px] sm:gap-3 border-b border-border-hairline pb-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
             <span>{kind === "income" ? "Invoice" : "Expense"}</span>
             <span className="text-right">Ex btw</span>
             <span className="text-right">Rate</span>
@@ -622,7 +622,7 @@ function LineEntry({
           {lines.map((line) => (
             <div
               key={line.id}
-              className="grid grid-cols-[1fr_100px_60px_100px] gap-3 border-b border-border-hairline py-2.5 text-[13.5px] tabular-nums"
+              className="grid grid-cols-[1fr_54px_34px_60px] gap-1.5 sm:grid-cols-[1fr_100px_60px_100px] sm:gap-3 border-b border-border-hairline py-2.5 text-[13.5px] tabular-nums"
             >
               <span>{"description" in line ? line.description : line.supplier}</span>
               <span className="text-right">{formatCents(line.amountExVatCents)}</span>
@@ -632,7 +632,7 @@ function LineEntry({
           ))}
         </div>
       )}
-      <div className="flex flex-wrap items-end gap-2.5 px-6 py-4">
+      <div className="flex flex-wrap items-end gap-2.5 px-3 py-4 sm:px-6">
         <input
           type="date"
           value={date}
@@ -705,8 +705,8 @@ function HandoffPanel({
       <p className="px-6 pb-1 text-xs text-body">
         Laid out exactly like the form — type these into the matching fields.
       </p>
-      <div className="mx-6 mt-3 overflow-hidden rounded-control border border-border">
-        <div className="grid grid-cols-[52px_1fr_100px_100px] gap-3 border-b border-border-hairline bg-paper px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
+      <div className="mx-3 mt-3 overflow-hidden rounded-control border border-border sm:mx-6">
+        <div className="grid grid-cols-[32px_1fr_60px_60px] gap-1.5 sm:grid-cols-[52px_1fr_100px_100px] sm:gap-3 border-b border-border-hairline bg-paper px-4 py-2 text-[11px] font-semibold uppercase tracking-wide text-faint">
           <span>Rubriek</span>
           <span>Omschrijving</span>
           <span className="text-right">Omzet</span>
@@ -723,7 +723,7 @@ function HandoffPanel({
           label="Voorbelasting — btw you paid"
           amount={-computed.rubriek5bCents}
         />
-        <div className="grid grid-cols-[52px_1fr_100px_100px] gap-3 bg-accent-tint px-4 py-3.5 text-sm font-semibold tabular-nums">
+        <div className="grid grid-cols-[32px_1fr_60px_60px] gap-1.5 sm:grid-cols-[52px_1fr_100px_100px] sm:gap-3 bg-accent-tint px-4 py-3.5 text-sm font-semibold tabular-nums">
           <span className="font-mono text-xs">5c</span>
           <span>Totaal te betalen</span>
           <span />
@@ -804,7 +804,7 @@ function HandoffRow({
   amount: number;
 }) {
   return (
-    <div className="grid grid-cols-[52px_1fr_100px_100px] gap-3 border-b border-border-hairline px-4 py-3 text-[13.5px] tabular-nums">
+    <div className="grid grid-cols-[32px_1fr_60px_60px] gap-1.5 sm:grid-cols-[52px_1fr_100px_100px] sm:gap-3 border-b border-border-hairline px-4 py-3 text-[13.5px] tabular-nums">
       <span className="font-mono text-xs font-semibold">{code}</span>
       <span>{label}</span>
       <span />

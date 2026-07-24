@@ -54,6 +54,7 @@ export function setAsideEntryDto(
     vatCents: row.vatCents,
     reserveCents: row.reserveCents,
     rateBps: row.rateBps,
+    status: row.status as SetAsideEntry["status"],
   };
 }
 
@@ -78,6 +79,8 @@ export function receiptDto(row: InferSelectModel<typeof schema.receipts>): Recei
     capturedAt: row.capturedAt.getTime(),
     checklist: row.checklist,
     missingCount: row.missingCount,
+    amountCents: row.amountCents,
+    note: row.note,
   };
 }
 

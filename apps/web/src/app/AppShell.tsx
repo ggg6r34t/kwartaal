@@ -1,10 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
+import { daysUntilDue } from "@kwartaal/core";
 import type { MeResponse } from "@kwartaal/core";
-import { primaryNav, secondaryNav, type NavItem } from "./nav";
+import { primaryNav, secondaryNav, mobileTabNav, type NavItem } from "./nav";
 import { useMe } from "../hooks/useMe";
+import { useDeadlines } from "../hooks/useDeadlines";
 import { setOnEntitlementRequired } from "../lib/api";
 import { PaywallInterstitial } from "../components/PaywallInterstitial";
+import { ExplainModeProvider } from "./explain-mode-context";
 
 function NavButton({ item }: { item: NavItem }) {
   const Icon = item.icon;
@@ -46,6 +49,55 @@ function PlanBadge({ me }: { me: MeResponse }) {
   );
 }
 
+/** VAT tab's accent dot: the same "urgent" threshold HeroCard uses on Today (days <= 14, including overdue). */
+function useVatUrgent(): boolean {
+  const { deadlines } = useDeadlines();
+  return useMemo(() => {
+    if (!deadlines) return false;
+    const now = new Date();
+    return deadlines.some(
+      (d) => d.kind === "btw_q" && !d.dismissedAt && daysUntilDue(d.dueDate, now) <= 14,
+    );
+  }, [deadlines]);
+}
+
+function MobileTabBar() {
+  const vatUrgent = useVatUrgent();
+  return (
+    <nav
+      aria-label="Mobile"
+      className="fixed inset-x-0 bottom-0 z-10 flex border-t border-border bg-surface md:hidden"
+    >
+      {mobileTabNav.map((item) => {
+        const Icon = item.icon;
+        return (
+          <NavLink
+            key={item.to}
+            to={item.to}
+            className={({ isActive }) =>
+              [
+                "flex min-h-[44px] flex-1 flex-col items-center justify-center gap-0.5 py-2 font-ui text-[11px] font-medium no-underline",
+                isActive ? "text-accent" : "text-faint",
+              ].join(" ")
+            }
+          >
+            <span className="relative">
+              <Icon className="text-current" />
+              {item.label === "VAT" && vatUrgent && (
+                <span
+                  aria-hidden="true"
+                  className="absolute -right-1 -top-1 h-1.5 w-1.5 rounded-full bg-accent"
+                />
+              )}
+            </span>
+            <span>{item.label}</span>
+          </NavLink>
+        );
+      })}
+    </nav>
+  );
+}
+
 function initialsFor(name: string): string {
   return name
     .split(" ")
@@ -67,11 +119,31 @@ export function AppShell() {
   }, []);
 
   return (
+    <ExplainModeProvider enabledFromServer={me?.explainModeEnabled}>
+      <AppShellLayout
+        me={me}
+        showPaywall={showPaywall}
+        onDismissPaywall={() => setShowPaywall(false)}
+      />
+    </ExplainModeProvider>
+  );
+}
+
+function AppShellLayout({
+  me,
+  showPaywall,
+  onDismissPaywall,
+}: {
+  me: MeResponse | null;
+  showPaywall: boolean;
+  onDismissPaywall: () => void;
+}) {
+  return (
     <div className="flex min-h-screen">
-      {showPaywall && <PaywallInterstitial onDismiss={() => setShowPaywall(false)} />}
+      {showPaywall && <PaywallInterstitial onDismiss={onDismissPaywall} />}
       <nav
         aria-label="Main"
-        className="sticky top-0 box-border flex h-screen w-56 flex-none flex-col border-r border-border px-3 py-5"
+        className="sticky top-0 hidden h-screen w-56 flex-none flex-col border-r border-border px-3 py-5 md:flex"
       >
         <div className="flex items-center gap-2.5 px-3 pb-6 pt-1.5">
           <span
@@ -113,11 +185,23 @@ export function AppShell() {
         </div>
       </nav>
 
-      <main className="box-border h-screen flex-1 overflow-y-auto">
-        <div className="px-12 pb-16 pt-11">
+      <div className="flex min-h-screen w-full flex-1 flex-col">
+        <header className="sticky top-0 z-10 flex items-center gap-2.5 border-b border-border bg-surface px-4 py-3 md:hidden">
+          <span
+            aria-hidden="true"
+            className="relative block h-[22px] w-[22px] rounded-full border-[1.5px] border-ink bg-surface"
+          >
+            <span className="absolute right-0.5 top-0.5 h-2 w-2 bg-accent [border-radius:0_10px_0_0]" />
+          </span>
+          <span className="text-sm font-bold tracking-tight">Kwartaal</span>
+        </header>
+
+        <main className="box-border flex-1 overflow-y-auto px-4 pb-24 pt-6 md:h-screen md:px-12 md:pb-16 md:pt-11">
           <Outlet />
-        </div>
-      </main>
+        </main>
+
+        <MobileTabBar />
+      </div>
     </div>
   );
 }

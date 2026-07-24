@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `explain_mode_enabled` integer DEFAULT true NOT NULL;

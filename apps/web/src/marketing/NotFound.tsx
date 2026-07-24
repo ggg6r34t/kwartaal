@@ -5,8 +5,8 @@ import { MarketingLayout } from "./MarketingLayout";
 export function NotFound() {
   return (
     <MarketingLayout>
-      <div className="mx-auto max-w-[1120px] px-10 py-16">
-        <div className="rounded-card border border-border bg-surface px-9 py-24 text-center shadow-card">
+      <div className="mx-auto max-w-[1120px] px-5 py-10 sm:px-10 sm:py-16">
+        <div className="rounded-card border border-border bg-surface px-5 py-16 text-center shadow-card sm:px-9 sm:py-24">
           <div className="mb-6 flex justify-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-full border-2 border-dashed border-border-strong bg-paper text-[15px] font-bold text-faint">
               ?

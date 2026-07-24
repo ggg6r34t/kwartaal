@@ -4,16 +4,23 @@ import { useGlossary } from "../hooks/useGlossary";
 export function Glossary() {
   const { terms, loading } = useGlossary();
   const [query, setQuery] = useState("");
+  const trimmedQuery = query.trim();
 
+  // No search entered = the full list, always — the no-match message is
+  // only ever for a genuinely non-empty query with zero matches, never
+  // shown just because the term list hasn't loaded yet or happens to be
+  // empty (see health.ts's `/health/ready` for why an empty glossary
+  // itself should never reach production).
   const filtered = (terms ?? []).filter((term) => {
-    const q = query.trim().toLowerCase();
-    if (!q) return true;
+    if (!trimmedQuery) return true;
+    const q = trimmedQuery.toLowerCase();
     return (
       term.nlTerm.toLowerCase().includes(q) ||
       term.enGloss.toLowerCase().includes(q) ||
       term.plainExplanation.toLowerCase().includes(q)
     );
   });
+  const showNoMatch = !loading && trimmedQuery.length > 0 && filtered.length === 0;
 
   return (
     <div>
@@ -56,8 +63,8 @@ export function Glossary() {
             </p>
           </section>
         ))}
-        {!loading && filtered.length === 0 && (
-          <p className="text-sm text-body">No terms match "{query}".</p>
+        {showNoMatch && (
+          <p className="text-sm text-body">No terms match "{trimmedQuery}".</p>
         )}
       </div>
     </div>

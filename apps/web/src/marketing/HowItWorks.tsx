@@ -14,12 +14,12 @@ function StepHeading({ n, title }: { n: string; title: string }) {
 export function HowItWorks() {
   return (
     <MarketingLayout current="/how-it-works">
-      <div className="mx-auto max-w-[780px] px-10 py-16">
+      <div className="mx-auto max-w-[780px] px-5 py-10 sm:px-10 sm:py-16">
         <div className="mb-16">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-accent">
             How it works · one real quarter
           </div>
-          <h1 className="m-0 mb-4 text-[42px] font-semibold leading-tight tracking-tight">
+          <h1 className="m-0 mb-4 text-[28px] font-semibold leading-tight tracking-tight sm:text-[42px]">
             Twelve days in October, with Maya
           </h1>
           <p className="m-0 text-base leading-relaxed text-body">
@@ -49,7 +49,9 @@ export function HowItWorks() {
                   className="h-3.5 w-3.5 bg-accent [border-radius:0_100%_0_0]"
                 />
                 <span className="font-semibold">Kwartaal</span>
-                <span className="text-faint">post@kwartaal.nl</span>
+                <span className="hidden text-faint sm:inline">
+                  hello@mail.kwartaal.app
+                </span>
                 <span className="ml-auto tabular-nums text-faint">Mon 19 Oct, 08:30</span>
               </div>
               <div className="px-7 py-6">
@@ -184,7 +186,7 @@ export function HowItWorks() {
               takes five minutes.
             </p>
             <div className="overflow-hidden rounded-card border border-border bg-surface shadow-card tabular-nums">
-              <div className="grid grid-cols-[64px_1fr_130px] gap-3 border-b border-border-hairline px-7 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
+              <div className="grid grid-cols-[44px_1fr_72px] sm:grid-cols-[64px_1fr_130px] gap-3 border-b border-border-hairline px-7 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
                 <span>Rubriek</span>
                 <span>What the form calls it</span>
                 <span className="text-right">Your number</span>
@@ -196,14 +198,14 @@ export function HowItWorks() {
               ].map(([code, label, amount]) => (
                 <div
                   key={code}
-                  className="grid grid-cols-[64px_1fr_130px] items-baseline gap-3 border-b border-border-hairline px-7 py-3.5 text-sm"
+                  className="grid grid-cols-[44px_1fr_72px] sm:grid-cols-[64px_1fr_130px] items-baseline gap-3 border-b border-border-hairline px-7 py-3.5 text-sm"
                 >
                   <span className="font-mono text-[12.5px] font-semibold">{code}</span>
                   <span className="text-body">{label}</span>
                   <span className="text-right font-semibold">{amount}</span>
                 </div>
               ))}
-              <div className="grid grid-cols-[64px_1fr_130px] items-baseline gap-3 bg-accent-tint px-7 py-3.5 text-sm">
+              <div className="grid grid-cols-[44px_1fr_72px] sm:grid-cols-[64px_1fr_130px] items-baseline gap-3 bg-accent-tint px-7 py-3.5 text-sm">
                 <span className="font-mono text-[12.5px] font-semibold">5c</span>
                 <span className="font-semibold">Te betalen</span>
                 <span className="text-right text-base font-semibold">€3.530</span>
@@ -225,7 +227,7 @@ export function HowItWorks() {
               Filing and paying are separate deadlines in real life, so they're separate
               confirmations here. Each one states its consequence.
             </p>
-            <div className="grid grid-cols-2 gap-3.5">
+            <div className="grid grid-cols-1 gap-3.5 sm:grid-cols-2">
               {[
                 ["I filed it", "The aangifte is in. One thing left: the payment itself."],
                 ["I paid it", "€3.530,00 with the payment reference — done means done."],
@@ -269,7 +271,7 @@ export function HowItWorks() {
           </section>
         </div>
 
-        <div className="mt-16 rounded-card border border-border bg-surface p-11 text-center">
+        <div className="mt-16 rounded-card border border-border bg-surface p-6 text-center sm:p-11">
           <h2 className="m-0 mb-2.5 text-[26px] font-semibold tracking-tight">
             Your Q4 could close like this.
           </h2>

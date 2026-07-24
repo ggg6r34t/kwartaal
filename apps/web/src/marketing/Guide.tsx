@@ -5,18 +5,18 @@ import { MarketingLayout } from "./MarketingLayout";
 export function Guide() {
   return (
     <MarketingLayout current="/guide">
-      <article className="mx-auto max-w-[680px] px-10 py-16">
+      <article className="mx-auto max-w-[680px] px-5 py-10 sm:px-10 sm:py-16">
         <div className="mb-3.5 text-[11px] font-semibold uppercase tracking-wide text-accent">
           Expat tax guide · btw basics
         </div>
-        <h1 className="m-0 mb-4 font-explainer text-[42px] font-medium leading-tight tracking-tight">
+        <h1 className="m-0 mb-4 font-explainer text-[28px] font-medium leading-tight tracking-tight sm:text-[42px]">
           Your first btw-aangifte, explained
         </h1>
         <p className="m-0 mb-2.5 font-explainer text-[19px] italic leading-relaxed text-body">
           The quarterly VAT return is the deadline expats meet first — and the one that
           teaches you how the whole Dutch system thinks.
         </p>
-        <div className="mb-10 flex items-center gap-3.5 border-b border-border pb-6 text-[12.5px] text-faint">
+        <div className="mb-10 flex flex-wrap items-center gap-3.5 border-b border-border pb-6 text-[12.5px] text-faint">
           <span>By the Kwartaal team</span>
           <span>·</span>
           <span>8 min read</span>

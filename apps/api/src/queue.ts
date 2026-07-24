@@ -113,6 +113,17 @@ async function handleReminderMessage(
     await deliverReminderEmail(env, authRow.email, email.subject, email.html, email.text);
   }
 
+  if (body.stage === "same_day_1900") {
+    // Clears the pending indicator now that it's actually been sent — the
+    // reminder_logs row above is what prevents a resend, this is just so
+    // the UI stops showing "pending" for a request that already fired.
+    await tenantDb.update(
+      schema.deadlines,
+      { sameDayReminderRequestedAt: null },
+      eq(schema.deadlines.id, body.deadlineId),
+    );
+  }
+
   await audit(tenantDb, {
     actor: owner.id,
     action: "reminder.sent",

@@ -31,8 +31,8 @@ export function LegalPage({
 }) {
   return (
     <MarketingLayout>
-      <div className="mx-auto max-w-[820px] px-10 py-16">
-        <div className="rounded-card border border-border bg-surface p-9">
+      <div className="mx-auto max-w-[820px] px-5 py-10 sm:px-10 sm:py-16">
+        <div className="rounded-card border border-border bg-surface p-5 sm:p-9">
           <div className="mb-2.5 text-[11px] font-semibold uppercase tracking-wide text-faint">
             Legal · last updated {updated}
           </div>
@@ -53,10 +53,10 @@ export function LegalPage({
             </p>
           </div>
 
-          <div className="grid grid-cols-[180px_1fr] gap-x-7 gap-y-2">
+          <div className="grid grid-cols-1 gap-y-1 sm:grid-cols-[180px_1fr] sm:gap-x-7 sm:gap-y-2">
             {sections.map((section, i) => (
               <Fragment key={section.heading}>
-                <div className="pt-0.5 text-xs tabular-nums text-faint">
+                <div className="pt-0.5 text-xs font-semibold tabular-nums text-faint sm:font-normal">
                   {i + 1}. {section.heading}
                 </div>
                 <div className="mb-3.5 text-sm leading-relaxed text-ink">

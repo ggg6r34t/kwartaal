@@ -91,7 +91,7 @@ function FiguresPending({
           </p>
         </div>
       </section>
-      <div className="grid grid-cols-2 gap-5">
+      <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
         <div className="rounded-card border border-dashed border-pending-border bg-surface p-6">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-faint">
             Revenue so far
@@ -151,14 +151,14 @@ function Studio({ year, data }: { year: number; data: ResolvedIncomeTax }) {
         1 · Profit
       </div>
       <section className="mb-7 rounded-card border border-border bg-surface p-6 tabular-nums">
-        <div className="grid grid-cols-[160px_1fr_140px] items-center gap-4 py-2">
+        <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[160px_1fr_140px] sm:items-center sm:gap-4 py-2">
           <div className="text-sm font-semibold">Revenue</div>
           <Bar pct={100} className="bg-border-strong" />
           <div className="text-right text-sm font-semibold">
             {formatCents(revenueCents)}
           </div>
         </div>
-        <div className="grid grid-cols-[160px_1fr_140px] items-center gap-4 py-2">
+        <div className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[160px_1fr_140px] sm:items-center sm:gap-4 py-2">
           <div>
             <div className="text-sm font-semibold">Costs</div>
             <div className="text-xs text-faint">from your Vault — {year} so far</div>
@@ -171,7 +171,7 @@ function Studio({ year, data }: { year: number; data: ResolvedIncomeTax }) {
             −{formatCents(data.costsCents)}
           </div>
         </div>
-        <div className="mt-1.5 grid grid-cols-[160px_1fr_140px] items-center gap-4 border-t border-border-hairline py-2 pt-3.5">
+        <div className="mt-1.5 grid grid-cols-1 items-start gap-1 sm:grid-cols-[160px_1fr_140px] sm:items-center sm:gap-4 border-t border-border-hairline py-2 pt-3.5">
           <div className="text-sm font-semibold">Profit</div>
           <Bar
             pct={revenueCents ? (data.profitCents / revenueCents) * 100 : 0}
@@ -190,7 +190,7 @@ function Studio({ year, data }: { year: number; data: ResolvedIncomeTax }) {
         {data.waterfall.map((step, i) => (
           <div
             key={i}
-            className="grid grid-cols-[230px_1fr_190px] items-center gap-4 border-b border-border-hairline py-3 last:border-b-0"
+            className="grid grid-cols-1 items-start gap-1 sm:grid-cols-[230px_1fr_190px] sm:items-center sm:gap-4 border-b border-border-hairline py-3 last:border-b-0"
           >
             <div>
               <div className="text-sm font-semibold">{step.label}</div>
@@ -218,7 +218,7 @@ function Studio({ year, data }: { year: number; data: ResolvedIncomeTax }) {
             </div>
           </div>
         ))}
-        <div className="mt-1.5 grid grid-cols-[230px_1fr_190px] items-center gap-4 border-t border-border-hairline py-3 pt-4">
+        <div className="mt-1.5 grid grid-cols-1 items-start gap-1 sm:grid-cols-[230px_1fr_190px] sm:items-center sm:gap-4 border-t border-border-hairline py-3 pt-4">
           <div className="text-sm font-semibold">Taxable income</div>
           <Bar
             pct={data.profitCents ? (data.taxableCents / data.profitCents) * 100 : 0}
@@ -243,7 +243,7 @@ function Studio({ year, data }: { year: number; data: ResolvedIncomeTax }) {
         3 · Poured through the {year} brackets
       </div>
       <section className="mb-3.5 rounded-card border border-border bg-surface p-6 tabular-nums">
-        <div className="mb-5 grid grid-cols-3 gap-5">
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3 sm:gap-5">
           {bracketFills.map((fill, i) => (
             <div key={i}>
               <div className="mb-2.5 flex h-[110px] items-end overflow-hidden rounded-b-[10px] rounded-t-none border border-t-0 border-border-strong">

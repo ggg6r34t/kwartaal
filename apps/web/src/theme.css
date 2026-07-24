@@ -168,6 +168,22 @@ body {
   animation: drawer-settle 420ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
 }
 
+/* docs/design's Motion spec for the Learn-layer ※ asides: explainIn 260ms. */
+@keyframes explain-in {
+  0% {
+    transform: translateY(6px);
+    opacity: 0;
+  }
+  100% {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.animate-explain-in {
+  animation: explain-in 260ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+
 @media (prefers-reduced-motion: reduce) {
   * {
     animation: none !important;

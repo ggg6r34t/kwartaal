@@ -143,7 +143,11 @@ app.route("/money", money);
 app.use("/receipts/*", csrfGuard, requireSession, requireProForMutations);
 app.route("/receipts", receipts);
 
-app.use("/export-jobs/*", csrfGuard, requireSession, requireProForMutations);
+// Never Pro-gated: "trial data remains readable and exportable... behind
+// the gate" (Definition of Done) means requesting your own export must
+// keep working even after the gate closes — a lapsed trial user must
+// always be able to get their data out.
+app.use("/export-jobs/*", csrfGuard, requireSession);
 app.route("/export-jobs", exportJobs);
 
 app.use("/startup-costs/*", csrfGuard, requireSession);

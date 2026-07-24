@@ -129,6 +129,10 @@ onboarding.post(
       .from(schema.orgs)
       .where(eq(schema.orgs.id, session.orgId));
     const [updatedProfile] = await tenantDb.select(schema.businessProfiles);
+    const [membership] = await tenantDb.select(
+      schema.users,
+      eq(schema.users.id, session.userId),
+    );
     const hasProAccess = await computeEntitlement(tenantDb);
 
     const response: MeResponse = {
@@ -139,6 +143,7 @@ onboarding.post(
       deletionRequestedAt: org!.deletionRequestedAt
         ? org!.deletionRequestedAt.getTime()
         : null,
+      explainModeEnabled: membership?.explainModeEnabled ?? true,
     };
 
     return c.json(meResponseSchema.parse(response));

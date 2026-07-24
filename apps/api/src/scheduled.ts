@@ -1,7 +1,13 @@
 import { eq } from "drizzle-orm";
-import { createDb } from "@kwartaal/db";
+import { createDb, type Database } from "@kwartaal/db";
 import { schema } from "@kwartaal/db/schema";
-import { daysUntilDue, dueReminderStage, type ReminderCadence } from "@kwartaal/core";
+import {
+  amsterdamDateString,
+  amsterdamHour,
+  daysUntilDue,
+  dueReminderStage,
+  type ReminderCadence,
+} from "@kwartaal/core";
 import type { Bindings, ReminderQueueMessage } from "./bindings";
 import { logger } from "./lib/logger";
 import { runWeeklyBackup, sweepExpiredDeletions } from "./lib/backup";
@@ -68,6 +74,7 @@ async function fanOutReminders(env: Bindings, now: Date): Promise<void> {
       orgId: schema.deadlines.orgId,
       dueDate: schema.deadlines.dueDate,
       dismissedAt: schema.deadlines.dismissedAt,
+      sameDayReminderRequestedAt: schema.deadlines.sameDayReminderRequestedAt,
       quarterStatus: schema.quarters.status,
       cadence: schema.businessProfiles.reminderCadence,
     })
@@ -86,25 +93,69 @@ async function fanOutReminders(env: Bindings, now: Date): Promise<void> {
     if (row.quarterStatus === "handled_elsewhere" || row.quarterStatus === "paid")
       continue;
 
-    const days = daysUntilDue(row.dueDate, now);
-    const stage = dueReminderStage(days, row.cadence as ReminderCadence);
-    if (!stage) continue;
-
-    const existing = await db.query.reminderLogs.findFirst({
-      where: (logs, { and, eq: eqOp }) =>
-        and(eqOp(logs.deadlineId, row.deadlineId), eqOp(logs.stage, stage)),
-    });
-    if (existing) continue;
-
-    const message: ReminderQueueMessage = {
-      kind: "reminder",
-      orgId: row.orgId,
-      deadlineId: row.deadlineId,
-      stage,
-    };
-    await env.REMINDER_QUEUE.send(message);
-    enqueued += 1;
+    if (await maybeEnqueueCadenceStage(db, env, row, now)) enqueued += 1;
+    if (await maybeEnqueueSameDayStage(db, env, row, now)) enqueued += 1;
   }
 
   logger.info("reminder-fan-out-complete", { scanned: rows.length, enqueued });
+}
+
+async function maybeEnqueueCadenceStage(
+  db: Database,
+  env: Bindings,
+  row: { deadlineId: string; orgId: string; dueDate: string; cadence: string },
+  now: Date,
+): Promise<boolean> {
+  const days = daysUntilDue(row.dueDate, now);
+  const stage = dueReminderStage(days, row.cadence as ReminderCadence);
+  if (!stage) return false;
+
+  const existing = await db.query.reminderLogs.findFirst({
+    where: (logs, { and, eq: eqOp }) =>
+      and(eqOp(logs.deadlineId, row.deadlineId), eqOp(logs.stage, stage)),
+  });
+  if (existing) return false;
+
+  const message: ReminderQueueMessage = {
+    kind: "reminder",
+    orgId: row.orgId,
+    deadlineId: row.deadlineId,
+    stage,
+  };
+  await env.REMINDER_QUEUE.send(message);
+  return true;
+}
+
+/**
+ * "Remind me at my laptop tonight" — user-triggered, not cadence-computed
+ * (see ReminderStage's own doc comment). Fires once the Amsterdam clock
+ * reaches 19:00 on the SAME Amsterdam calendar day the request was made; a
+ * request left unactioned past that night simply lapses rather than firing
+ * on some later tick — "tonight" means tonight, not "eventually."
+ */
+async function maybeEnqueueSameDayStage(
+  db: Database,
+  env: Bindings,
+  row: { deadlineId: string; orgId: string; sameDayReminderRequestedAt: Date | null },
+  now: Date,
+): Promise<boolean> {
+  if (!row.sameDayReminderRequestedAt) return false;
+  if (amsterdamHour(now) < 19) return false;
+  if (amsterdamDateString(row.sameDayReminderRequestedAt) !== amsterdamDateString(now))
+    return false;
+
+  const existing = await db.query.reminderLogs.findFirst({
+    where: (logs, { and, eq: eqOp }) =>
+      and(eqOp(logs.deadlineId, row.deadlineId), eqOp(logs.stage, "same_day_1900")),
+  });
+  if (existing) return false;
+
+  const message: ReminderQueueMessage = {
+    kind: "reminder",
+    orgId: row.orgId,
+    deadlineId: row.deadlineId,
+    stage: "same_day_1900",
+  };
+  await env.REMINDER_QUEUE.send(message);
+  return true;
 }

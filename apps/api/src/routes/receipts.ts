@@ -6,6 +6,7 @@ import {
   newId,
   RECEIPT_CHECKLIST_ELEMENTS,
   updateReceiptChecklistSchema,
+  updateReceiptDetailsSchema,
 } from "@kwartaal/core";
 import type { AppEnv } from "../bindings";
 import { requireRole } from "../middleware/auth";
@@ -131,6 +132,45 @@ receipts.patch(
       action: "receipt.checklist-updated",
       target: id,
       meta: { missingCount },
+    });
+
+    const [row] = await tenantDb.select(schema.receipts, eq(schema.receipts.id, id));
+    return c.json(receiptDto(row!));
+  },
+);
+
+/**
+ * The note-fallback rule: amount is manually entered on review (no OCR —
+ * locked decision #9), and a receipt can be saved despite a missing
+ * checklist element by recording why in `note`, alongside the photo.
+ */
+receipts.patch(
+  "/:id/details",
+  requireRole("owner"),
+  zValidator("json", updateReceiptDetailsSchema),
+  async (c) => {
+    const tenantDb = c.get("tenantDb");
+    const id = c.req.param("id");
+    const body = c.req.valid("json");
+
+    const [existingRow] = await tenantDb.select(
+      schema.receipts,
+      eq(schema.receipts.id, id),
+    );
+    if (!existingRow) return c.json({ error: "receipt-not-found" }, 404);
+
+    await tenantDb.update(
+      schema.receipts,
+      {
+        ...(body.amountCents !== undefined ? { amountCents: body.amountCents } : {}),
+        ...(body.note !== undefined ? { note: body.note } : {}),
+      },
+      eq(schema.receipts.id, id),
+    );
+    await audit(tenantDb, {
+      actor: c.get("session").userId,
+      action: "receipt.details-updated",
+      target: id,
     });
 
     const [row] = await tenantDb.select(schema.receipts, eq(schema.receipts.id, id));

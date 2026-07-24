@@ -42,7 +42,7 @@ export function Money() {
       <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-faint">
         1 · When an invoice is paid
       </div>
-      <Splitter />
+      <Splitter onLogged={() => {}} />
 
       <PotsSection />
 
@@ -55,13 +55,13 @@ export function Money() {
   );
 }
 
-function Splitter() {
+function Splitter({ onLogged }: { onLogged: () => void }) {
   const [totalInput, setTotalInput] = useState("2.420,00");
   const [vatRate, setVatRate] = useState<VatRate>(21);
   const [reservePct, setReservePct] = useState(30);
   const [invoiceRef, setInvoiceRef] = useState("");
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<"confirmed" | "pending" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   let totalCents = 0;
@@ -74,8 +74,9 @@ function Splitter() {
   const yoursPct = totalCents ? (split.yoursCents / totalCents) * 100 : 0;
   const btwPct = totalCents ? (split.vatCents / totalCents) * 100 : 0;
   const resPct = totalCents ? (split.reserveCents / totalCents) * 100 : 0;
+  const toMoveCents = split.vatCents + split.reserveCents;
 
-  async function logSplit() {
+  async function logSplit(status: "confirmed" | "pending") {
     setError(null);
     if (!invoiceRef.trim()) {
       setError("Add an invoice reference to log this split.");
@@ -90,11 +91,13 @@ function Splitter() {
           totalCents,
           vatRate,
           reserveRateBps: reservePct * 100,
+          status,
         }),
       });
-      setSaved(true);
+      setSaved(status);
       setInvoiceRef("");
-      setTimeout(() => setSaved(false), 3000);
+      onLogged();
+      setTimeout(() => setSaved(null), 3000);
     } finally {
       setSaving(false);
     }
@@ -102,6 +105,13 @@ function Splitter() {
 
   return (
     <section className="mb-7 rounded-card border border-border bg-surface p-6">
+      <div className="mb-5 text-[13px] text-body">
+        A client just paid you{" "}
+        <strong className="text-ink">
+          {totalCents > 0 ? formatCents(totalCents) : "€…"}
+        </strong>
+        ?
+      </div>
       <div className="mb-5 flex flex-wrap items-end gap-6">
         <div>
           <label
@@ -196,28 +206,42 @@ function Splitter() {
           </span>
         </div>
       </div>
-      <p className="mb-4 mt-3.5 text-xs text-body">
-        Move the btw and the reserve to the Taxes pot the day the invoice is paid — then
-        the rest really is yours.
-      </p>
-      <div className="flex flex-wrap items-center gap-2.5 border-t border-border-hairline pt-4">
+      <div className="mb-4 mt-3.5 rounded-control border border-accent-border bg-accent-tint px-4 py-3 text-[13.5px] font-semibold text-ink">
+        Move {formatCents(toMoveCents)} to the Taxes pot.
+      </div>
+      <div className="border-t border-border-hairline pt-4">
         <input
           value={invoiceRef}
           onChange={(e) => setInvoiceRef(e.target.value)}
           placeholder="Invoice reference"
           aria-label="Invoice reference"
-          className="min-w-[160px] flex-1 rounded-control border border-border-strong bg-surface px-3 py-2 text-[13px]"
+          className="mb-2.5 w-full rounded-control border border-border-strong bg-surface px-3 py-2 text-[13px]"
         />
-        <button
-          type="button"
-          onClick={() => void logSplit()}
-          disabled={saving || totalCents <= 0}
-          className="rounded-control border border-border-strong px-3.5 py-2 text-[13px] font-semibold text-ink hover:bg-wash disabled:opacity-50"
-        >
-          Log this split
-        </button>
-        {saved && (
-          <span className="text-[13px] font-semibold text-state-settled">Logged.</span>
+        {saved ? (
+          <div className="rounded-control border border-state-settled-border bg-state-settled-bg px-4 py-3 text-[13px] font-semibold text-state-settled-ink">
+            {saved === "confirmed"
+              ? "Split and set aside. The rest is yours."
+              : "Tonight at 19:00. The split stays pinned to Today until it's moved."}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2.5">
+            <button
+              type="button"
+              onClick={() => void logSplit("confirmed")}
+              disabled={saving || totalCents <= 0}
+              className="min-h-[44px] flex-1 rounded-control bg-accent px-4 py-2.5 text-[13.5px] font-semibold text-white hover:bg-accent-hover disabled:opacity-50"
+            >
+              I moved it — done
+            </button>
+            <button
+              type="button"
+              onClick={() => void logSplit("pending")}
+              disabled={saving || totalCents <= 0}
+              className="min-h-[44px] flex-1 rounded-control border border-border-strong px-4 py-2.5 text-[13.5px] font-semibold text-ink hover:bg-wash disabled:opacity-50"
+            >
+              Remind me tonight
+            </button>
+          </div>
         )}
       </div>
       {error && <p className="mt-2 text-xs text-state-overdue">{error}</p>}
@@ -315,7 +339,7 @@ function PotsSection() {
           No pots yet — add one to start the monthly review ritual.
         </p>
       ) : (
-        <div className="mb-7 grid grid-cols-3 gap-3.5 tabular-nums">
+        <div className="mb-7 grid grid-cols-1 gap-3.5 tabular-nums sm:grid-cols-2 md:grid-cols-3">
           {pots.map((pot) => (
             <PotCard key={pot.id} pot={pot} onReviewed={refetch} />
           ))}
@@ -466,7 +490,7 @@ function VoorlopigeAanslagSection({ year }: { year: number }) {
           />{" "}
           decision
         </div>
-        <div className="mb-4 grid grid-cols-2 gap-3.5">
+        <div className="mb-4 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
           <div className="rounded-control border border-border-hairline p-4">
             <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-state-settled">
               What you gain

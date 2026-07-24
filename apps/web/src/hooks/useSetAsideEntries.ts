@@ -1,14 +1,14 @@
 import { useCallback, useEffect, useState } from "react";
-import type { DeadlineRow } from "@kwartaal/core";
+import type { SetAsideEntry } from "@kwartaal/core";
 import { apiFetch } from "../lib/api";
 
-export function useDeadlines() {
-  const [deadlines, setDeadlines] = useState<DeadlineRow[] | null>(null);
+export function useSetAsideEntries() {
+  const [entries, setEntries] = useState<SetAsideEntry[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const refetch = useCallback(async () => {
-    const data = await apiFetch<DeadlineRow[]>("/deadlines");
-    setDeadlines(data);
+    const data = await apiFetch<SetAsideEntry[]>("/money/set-aside-entries");
+    setEntries(data);
     return data;
   }, []);
 
@@ -23,5 +23,5 @@ export function useDeadlines() {
     };
   }, [refetch]);
 
-  return { deadlines, loading, refetch };
+  return { entries, loading, refetch };
 }

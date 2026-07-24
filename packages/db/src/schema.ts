@@ -80,6 +80,13 @@ export const users = sqliteTable(
     role: text("role").notNull().default("owner"),
     // status: "active" | "invited" | "suspended"
     status: text("status").notNull().default("active"),
+    // "Explain notes" — the editorial ※ asides from docs/design (Learn
+    // layer, `explainOn`) — default-on per the operator's ruling, one
+    // per person (this table is 1:1 with a real person via
+    // users_auth_user_idx), toggled from Settings.
+    explainModeEnabled: integer("explain_mode_enabled", { mode: "boolean" })
+      .notNull()
+      .default(true),
     ...timestamps(),
   },
   (t) => [
@@ -311,6 +318,14 @@ export const receipts = sqliteTable(
       Record<string, { confirmed: boolean }>
     >(),
     missingCount: integer("missing_count").notNull().default(6),
+    // Manually entered (no OCR — see locked decision #9), nullable until
+    // the user types it in on review. Needed to evaluate the >€100
+    // note-fallback rule below; not populated at upload time.
+    amountCents: integer("amount_cents"),
+    // The note-fallback rule: a missing element over €100 can be saved
+    // anyway with a note stored alongside the photo, instead of being
+    // blocked or silently left incomplete.
+    note: text("note"),
     ...timestamps(),
   },
   (t) => [index("receipts_org_idx").on(t.orgId)],
@@ -378,6 +393,12 @@ export const setAsideEntries = sqliteTable(
     vatCents: integer("vat_cents").notNull(),
     reserveCents: integer("reserve_cents").notNull(),
     rateBps: integer("rate_bps").notNull(),
+    // status: "pending" | "confirmed" — the split ritual's "I moved it —
+    // done" (confirmed immediately) vs "Remind me tonight" (pending: the
+    // money hasn't moved yet, so this entry pins to Today until PATCHed
+    // to confirmed). Default confirmed for backward compatibility with
+    // the pre-existing single-step log action.
+    status: text("status").notNull().default("confirmed"),
     ...timestamps(),
   },
   (t) => [index("set_aside_entries_org_idx").on(t.orgId)],
@@ -418,6 +439,12 @@ export const deadlines = sqliteTable(
       onDelete: "cascade",
     }),
     dismissedAt: instant("dismissed_at"),
+    // Set by POST /deadlines/:id/remind-tonight ("Remind me at my laptop
+    // tonight"), cleared by DELETE (Undo) or once the 19:00 Amsterdam scan
+    // in scheduled.ts actually sends it. A one-off, user-triggered sibling
+    // of the stage-based reminders below — reuses the same cron/queue/
+    // reminder_logs pipeline (stage "same_day_1900"), not new machinery.
+    sameDayReminderRequestedAt: instant("same_day_reminder_requested_at"),
     ...timestamps(),
   },
   (t) => [

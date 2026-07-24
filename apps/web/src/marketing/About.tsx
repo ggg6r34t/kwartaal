@@ -3,12 +3,12 @@ import { MarketingLayout } from "./MarketingLayout";
 export function About() {
   return (
     <MarketingLayout>
-      <div className="mx-auto max-w-[680px] px-10 py-16">
+      <div className="mx-auto max-w-[680px] px-5 py-10 sm:px-10 sm:py-16">
         <section aria-label="About">
           <div className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-accent">
             About
           </div>
-          <h1 className="m-0 mb-5 text-[38px] font-semibold leading-tight tracking-tight">
+          <h1 className="m-0 mb-5 text-[28px] font-semibold leading-tight tracking-tight sm:text-[38px]">
             We moved here too.
           </h1>
           <div className="flex flex-col gap-5 text-[15.5px] leading-relaxed text-ink">
@@ -30,7 +30,7 @@ export function About() {
             </p>
           </div>
 
-          <div className="mt-7 grid grid-cols-2 gap-3.5">
+          <div className="mt-7 grid grid-cols-1 gap-3.5 sm:grid-cols-2">
             {[
               ["F1", "Founder name", "Design · ex-freelancer, Amsterdam"],
               ["F2", "Founder name", "Engineering · fintech, Rotterdam"],

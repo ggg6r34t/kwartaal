@@ -33,3 +33,18 @@ export function daysUntilDue(dueDateIso: string, now: Date): number {
   const today = calendarDateToUtcMidnight(todayIso);
   return Math.round((due - today) / msPerDay);
 }
+
+/**
+ * The Amsterdam hour (0-23) for the given instant — for the same-day
+ * 19:00 handoff reminder's cron check (scheduled.ts), which needs "is it
+ * currently 19:00 or later in Amsterdam" the same DST-safe way
+ * amsterdamDateString answers "what day is it in Amsterdam."
+ */
+export function amsterdamHour(instant: Date): number {
+  const hourStr = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Europe/Amsterdam",
+    hour: "2-digit",
+    hour12: false,
+  }).format(instant);
+  return Number(hourStr) % 24;
+}
